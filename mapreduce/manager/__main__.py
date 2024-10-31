@@ -1,40 +1,57 @@
-"""MapReduce framework Manager node."""
-import os
-import tempfile
-import logging
+import socket
+import threading
 import json
-import time
+import logging
 import click
-import mapreduce.utils
-
-
-# Configure logging
-LOGGER = logging.getLogger(__name__)
-
+import tempfile
 
 class Manager:
-    """Represent a MapReduce framework Manager node."""
-
     def __init__(self, host, port):
-        """Construct a Manager instance and start listening for messages."""
+        self.host = host
+        self.port = port
+        self.active = True
+        self.client_threads = []
 
-        LOGGER.info(
-            "Starting manager host=%s port=%s pwd=%s",
-            host, port, os.getcwd(),
-        )
+        # Setup TCP server socket with context manager
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind((host, port))
+            server_socket.listen()
+            self.server_socket = server_socket
 
-        # This is a fake message to demonstrate pretty printing with logging
-        message_dict = {
-            "message_type": "register",
-            "worker_host": "localhost",
-            "worker_port": 6001,
-        }
-        LOGGER.debug("TCP recv\n%s", json.dumps(message_dict, indent=2))
+            logging.info(f"Manager started at {host}:{port}")
+            self.listen_thread = threading.Thread(target=self.accept_clients)
+            self.listen_thread.start()
 
-        # TODO: you should remove this. This is just so the program doesn't
-        # exit immediately!
-        LOGGER.debug("IMPLEMENT ME!")
-        time.sleep(120)
+    def accept_clients(self):
+        while self.active:
+            with self.server_socket.accept() as (client_socket, addr):
+                logging.info(f"Accepted connection from {addr}")
+                thread = threading.Thread(target=self.handle_client, args=(client_socket,))
+                thread.start()
+                self.client_threads.append(thread)
+
+    def handle_client(self, client_socket):
+        try:
+            while self.active:
+                data = client_socket.recv(1024)
+                if data:
+                    try:
+                        message = json.loads(data)
+                        if message.get('message_type') == 'shutdown':
+                            self.shutdown()
+                            break
+                    except json.JSONDecodeError:
+                        logging.warning("Received invalid JSON")
+        finally:
+            client_socket.close()
+
+    def shutdown(self):
+        self.active = False
+        self.server_socket.close()
+        for thread in self.client_threads:
+            thread.join()
+        logging.info("Manager has been shut down")
 
 
 @click.command()
