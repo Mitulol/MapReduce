@@ -25,6 +25,7 @@ class Manager:
 
     def accept_clients(self):
         while self.active:
+            
             with self.server_socket.accept() as (client_socket, addr):
                 logging.info(f"Accepted connection from {addr}")
                 thread = threading.Thread(target=self.handle_client, args=(client_socket,))
