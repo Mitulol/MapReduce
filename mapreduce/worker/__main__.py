@@ -1,95 +1,108 @@
+import os
+import logging
+import json
 import socket
 import threading
-import json
-import logging
 import click
+import time
 
+# Configure logging
+LOGGER = logging.getLogger(__name__)
 
 class Worker:
     def __init__(self, host, port, manager_host, manager_port):
+        """Construct a Worker instance and start listening for messages."""
         self.host = host
         self.port = port
         self.manager_host = manager_host
         self.manager_port = manager_port
-        self.active = True  # To control the loop in case of shutdown
-
-        # Start socket within a context manager
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.bind((host, port))
-            server_socket.listen()  # Listening for a single connection at a time
-
-            self.server_socket = server_socket
-            logging.info(f"Worker started at {host}:{port}")
-
-            # Register with the Manager
-            self.register_with_manager()
-
-            # Start a thread to listen for Manager messages
-            self.listen_thread = threading.Thread(target=self.listen_for_messages)
-            self.listen_thread.start()
-            self.listen_thread.join()  # Ensure the thread completes before closing
+        self.shutdown_event = threading.Event()
+        self.threads = []
+        
+        LOGGER.info(f"Starting worker host={self.host} port={self.port}")
+        LOGGER.info(f"PWD {os.getcwd()}")
+        
+        self.register_with_manager()
+        self.start_tcp_listener()
 
     def register_with_manager(self):
-        """Send a registration message to the Manager."""
+        """Register the Worker with the Manager."""
         try:
-            with socket.create_connection((self.manager_host, self.manager_port)) as s:
-                message = json.dumps({
-                    "message_type": "register",
-                    "worker_host": self.host,
-                    "worker_port": self.port
-                })
-                s.send(message.encode())
-                logging.info("Registration sent to Manager")
+            register_message = json.dumps({
+                "message_type": "register",
+                "worker_host": self.host,
+                "worker_port": self.port,
+            }).encode("utf-8")
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.connect((self.manager_host, self.manager_port))
+                sock.sendall(register_message)
+                LOGGER.debug("Sent registration message to manager")
         except Exception as e:
-            logging.error(f"Failed to register with Manager: {e}")
+            LOGGER.error(f"Failed to register with manager: {e}")
 
-    def listen_for_messages(self):
-        """Listen for incoming messages, such as 'shutdown', from the Manager."""
-        while self.active:
-            client_socket, addr = self.server_socket.accept()
-            logging.info(f"Accepted connection from {addr}")
-            with client_socket:
+    def start_tcp_listener(self):
+        """Starts a thread that listens for commands from the Manager."""
+        listener_thread = threading.Thread(target=self.listen_for_commands)
+        self.threads.append(listener_thread)
+        listener_thread.start()
+
+    def listen_for_commands(self):
+        """Listens for commands from the Manager."""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((self.host, self.port))
+            sock.listen()
+            while not self.shutdown_event.is_set():
                 try:
-                    data = client_socket.recv(1024)
-                    if data:
-                        message = json.loads(data.decode())
-                        logging.info(f"Message from Manager: {message}")
-                        if message.get("message_type") == "shutdown":
-                            logging.info("Shutdown message received")
-                            self.shutdown()
-                            break  # Exit the loop after shutdown
+                    client_socket, _ = sock.accept()
+                    self.handle_client(client_socket)
+                except socket.error as e:
+                    if not self.shutdown_event.is_set():
+                        LOGGER.error(f"Error accepting connections: {e}")
+
+    def handle_client(self, client_socket):
+        with client_socket:
+            while not self.shutdown_event.is_set():
+                data = client_socket.recv(4096)
+                if not data:
+                    break
+                try:
+                    message = json.loads(data.decode('utf-8'))
+                    LOGGER.debug(f"Received message: {json.dumps(message, indent=2)}")
+                    if message.get('message_type') == 'shutdown':
+                        self.shutdown_event.set()
                 except json.JSONDecodeError:
-                    logging.warning("Received invalid JSON message")
+                    continue
 
     def shutdown(self):
-        """Shut down the Worker cleanly."""
-        self.active = False
-        logging.info("Worker has been shut down")
-
+        """Signals all threads to shut down and waits for them to finish."""
+        self.shutdown_event.set()
+        for thread in self.threads:
+            thread.join()
 
 @click.command()
 @click.option("--host", "host", default="localhost")
-@click.option("--port", "port", default=6001, type=int)
+@click.option("--port", "port", default=6001)
 @click.option("--manager-host", "manager_host", default="localhost")
-@click.option("--manager-port", "manager_port", default=6000, type=int)
+@click.option("--manager-port", "manager_port", default=6000)
 @click.option("--logfile", "logfile", default=None)
 @click.option("--loglevel", "loglevel", default="info")
 def main(host, port, manager_host, manager_port, logfile, loglevel):
-    # Configure logging
     if logfile:
         handler = logging.FileHandler(logfile)
     else:
         handler = logging.StreamHandler()
-    formatter = logging.Formatter(f"Worker:{port} [%(levelname)s] %(message)s")
+    formatter = logging.Formatter(f'Worker:{port} [%(levelname)s] %(message)')
     handler.setFormatter(formatter)
-    root_logger = logging.getLogger()
-    root_logger.addHandler(handler)
-    root_logger.setLevel(getattr(logging, loglevel.upper()))
+    LOGGER.addHandler(handler)
+    LOGGER.setLevel(loglevel.upper())
 
-    # Start Worker
-    Worker(host, port, manager_host, manager_port)
-
+    worker = Worker(host, port, manager_host, manager_port)
+    try:
+        while not worker.shutdown_event.is_set():
+            time.sleep(1)
+    finally:
+        worker.shutdown()
 
 if __name__ == "__main__":
     main()
