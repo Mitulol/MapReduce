@@ -1,84 +1,73 @@
+"""MapReduce framework Worker node."""
 import os
 import logging
 import json
-import socket
-import threading
-import click
 import time
+import click
+import threading
+from mapreduce.utils import tcp_server, handle_func, udp_heartbeat
+import socket
+
 
 # Configure logging
 LOGGER = logging.getLogger(__name__)
 
+
 class Worker:
+    """A class representing a Worker node in a MapReduce cluster."""
     def __init__(self, host, port, manager_host, manager_port):
         """Construct a Worker instance and start listening for messages."""
         self.host = host
         self.port = port
         self.manager_host = manager_host
         self.manager_port = manager_port
-        self.shutdown_event = threading.Event()
-        self.threads = []
+        self.signals = {
+            "shutdown": False
+        }
+        # LOGGER.info(
+        #     "Starting worker host=%s port=%s pwd=%s",
+        #     host, port, os.getcwd(),
+        # )
+        # LOGGER.info(
+        #     "manager_host=%s manager_port=%s",
+        #     manager_host, manager_port,
+        # )
+
+        #create new tcp socket on given port and call listen ->only one should remain open ->use tcp_server here
+        #listen and send message to manager
+        self.register_worker()
+        self.threads.append(threading.Thread(target=tcp_server(host, port, self.signals, handle_func))) # listens to heartbeats 
         
-        LOGGER.info(f"Starting worker host={self.host} port={self.port}")
-        LOGGER.info(f"PWD {os.getcwd()}")
-        
-        self.register_with_manager()
-        self.start_tcp_listener()
+        #self.threads.append(threading.Thread(target=udp_heartbeat(host, port, self.signals, handle_func))) # listens to heartbeats 
 
-    def register_with_manager(self):
-        """Register the Worker with the Manager."""
-        try:
-            register_message = json.dumps({
-                "message_type": "register",
-                "worker_host": self.host,
-                "worker_port": self.port,
-            }).encode("utf-8")
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.connect((self.manager_host, self.manager_port))
-                sock.sendall(register_message)
-                LOGGER.debug("Sent registration message to manager")
-        except Exception as e:
-            LOGGER.error(f"Failed to register with manager: {e}")
+        # message_dict = {
+        #     "message_type": "register_ack",
+        #     "worker_host": "localhost",
+        #     "worker_port": 6001,
+        # }
+        # LOGGER.debug("TCP recv\n%s", json.dumps(message_dict, indent=2))
 
-    def start_tcp_listener(self):
-        """Starts a thread that listens for commands from the Manager."""
-        listener_thread = threading.Thread(target=self.listen_for_commands)
-        self.threads.append(listener_thread)
-        listener_thread.start()
-
-    def listen_for_commands(self):
-        """Listens for commands from the Manager."""
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind((self.host, self.port))
-            sock.listen()
-            while not self.shutdown_event.is_set():
-                try:
-                    client_socket, _ = sock.accept()
-                    self.handle_client(client_socket)
-                except socket.error as e:
-                    if not self.shutdown_event.is_set():
-                        LOGGER.error(f"Error accepting connections: {e}")
-
-    def handle_client(self, client_socket):
-        with client_socket:
-            while not self.shutdown_event.is_set():
-                data = client_socket.recv(4096)
-                if not data:
-                    break
-                try:
-                    message = json.loads(data.decode('utf-8'))
-                    LOGGER.debug(f"Received message: {json.dumps(message, indent=2)}")
-                    if message.get('message_type') == 'shutdown':
-                        self.shutdown_event.set()
-                except json.JSONDecodeError:
-                    continue
-
-    def shutdown(self):
-        """Signals all threads to shut down and waits for them to finish."""
-        self.shutdown_event.set()
         for thread in self.threads:
-            thread.join()
+            thread.start()
+
+        for thread in self.threads:
+           thread.join()
+
+    def register_worker(self):
+        message_dict = {
+            "message_type" : "register",
+            "worker_host" : self.host,
+            "worker_port" : self.post,
+        }
+        self.send_registration_message_to_manager(self, message_dict)
+
+    def send_registration_message_to_manager(self, message_dict):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect((self.manager_host, self.manager_port))
+            msg = json.dumps(message_dict)
+            sock.sendall(msg.encode())
+        
+
 
 @click.command()
 @click.option("--host", "host", default="localhost")
@@ -88,21 +77,18 @@ class Worker:
 @click.option("--logfile", "logfile", default=None)
 @click.option("--loglevel", "loglevel", default="info")
 def main(host, port, manager_host, manager_port, logfile, loglevel):
+    """Run Worker."""
     if logfile:
         handler = logging.FileHandler(logfile)
     else:
         handler = logging.StreamHandler()
-    formatter = logging.Formatter(f'Worker:{port} [%(levelname)s] %(message)')
+    formatter = logging.Formatter(f"Worker:{port} [%(levelname)s] %(message)s")
     handler.setFormatter(formatter)
-    LOGGER.addHandler(handler)
-    LOGGER.setLevel(loglevel.upper())
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(loglevel.upper())
+    Worker(host, port, manager_host, manager_port)
 
-    worker = Worker(host, port, manager_host, manager_port)
-    try:
-        while not worker.shutdown_event.is_set():
-            time.sleep(1)
-    finally:
-        worker.shutdown()
 
 if __name__ == "__main__":
     main()
