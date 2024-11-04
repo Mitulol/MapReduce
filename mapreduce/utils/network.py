@@ -28,6 +28,8 @@ def tcp_server(host, port, signals, handle_func):
                 while True:
                     try:
                         data = clientsocket.recv(4096)
+                        if data:
+                            LOGGER.debug(f"Received raw data: {data}")
                     except socket.timeout:
                         continue
                     if not data:
@@ -41,8 +43,8 @@ def tcp_server(host, port, signals, handle_func):
                 message_dict = json.loads(message_str)
                 # Log the received message at DEBUG level in the exact format specified
                 LOGGER.debug(f"{host}:{port} [DEBUG] received\n{json.dumps(message_dict, indent=2)}")
-            except json.JSONDecodeError:
-                LOGGER.error("Failed to decode JSON message")
+            except json.JSONDecodeError as e:
+                LOGGER.error(f"Failed to decode JSON message: {e} - Raw message: {message_bytes}")
                 continue
 
             # Call the handler function with the received message
