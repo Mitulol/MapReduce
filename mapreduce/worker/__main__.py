@@ -1,73 +1,88 @@
-"""MapReduce framework Worker node."""
 import os
 import logging
 import json
 import time
 import click
 import threading
-from mapreduce.utils import tcp_server, handle_func, udp_heartbeat
+from mapreduce.utils.network import tcp_server
 import socket
 
-
-# Configure logging
+# Set up logger
 LOGGER = logging.getLogger(__name__)
 
-
 class Worker:
-    """A class representing a Worker node in a MapReduce cluster."""
+    """Represents a Worker node in a MapReduce cluster."""
+    
     def __init__(self, host, port, manager_host, manager_port):
-        """Construct a Worker instance and start listening for messages."""
+        """Initialize a Worker instance and start listening for messages."""
         self.host = host
         self.port = port
         self.manager_host = manager_host
         self.manager_port = manager_port
-        self.signals = {
-            "shutdown": False
-        }
-        # LOGGER.info(
-        #     "Starting worker host=%s port=%s pwd=%s",
-        #     host, port, os.getcwd(),
-        # )
-        # LOGGER.info(
-        #     "manager_host=%s manager_port=%s",
-        #     manager_host, manager_port,
-        # )
+        self.signals = {"shutdown": False}
+        self.task_in_progress = False  # Flag to indicate if a task is being processed
+        self.shutdown_event = threading.Event()  # Event to handle shutdown
 
-        #create new tcp socket on given port and call listen ->only one should remain open ->use tcp_server here
-        #listen and send message to manager
-        self.register_worker()
-        self.threads.append(threading.Thread(target=tcp_server(host, port, self.signals, handle_func))) # listens to heartbeats 
-        
-        #self.threads.append(threading.Thread(target=udp_heartbeat(host, port, self.signals, handle_func))) # listens to heartbeats 
+        # Log initial worker info
+        LOGGER.info(f"Worker:{port} Starting worker at {host}:{port}")
+        LOGGER.info(f"Worker:{port} Connecting to manager at {manager_host}:{manager_port}")
 
-        # message_dict = {
-        #     "message_type": "register_ack",
-        #     "worker_host": "localhost",
-        #     "worker_port": 6001,
-        # }
-        # LOGGER.debug("TCP recv\n%s", json.dumps(message_dict, indent=2))
+        # Start TCP server to listen for messages
+        self.threads = []
+        self.threads.append(threading.Thread(target=tcp_server, args=(host, port, self.signals, self.handle_func)))
+        self.send_registration_message_to_manager()
 
         for thread in self.threads:
             thread.start()
 
         for thread in self.threads:
-           thread.join()
+            thread.join()
 
-    def register_worker(self):
+    def send_registration_message_to_manager(self):
         message_dict = {
-            "message_type" : "register",
-            "worker_host" : self.host,
-            "worker_port" : self.post,
+            "message_type": "register",
+            "worker_host": self.host,
+            "worker_port": self.port,
         }
-        self.send_registration_message_to_manager(self, message_dict)
-
-    def send_registration_message_to_manager(self, message_dict):
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.connect((self.manager_host, self.manager_port))
-            msg = json.dumps(message_dict)
-            sock.sendall(msg.encode())
-        
+            sock.sendall(json.dumps(message_dict).encode())
+            LOGGER.info(f"Worker:{self.port} Sent registration message to Manager at {self.manager_host}:{self.manager_port}")
 
+    def send_heartbeat(self):
+        while not self.signals['shutdown']:
+            try:
+                message = {
+                    "message_type": "heartbeat",
+                    "worker_host": self.host,
+                    "worker_port": self.port,
+                }
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                    sock.sendto(json.dumps(message).encode(), (self.manager_host, self.manager_port))
+                time.sleep(2)  # Send heartbeat every 2 seconds
+            except Exception as e:
+                LOGGER.error("Error sending heartbeat: %s", e)
+                break
+
+    def handle_func(self, host, port, signals, message_dic):
+        # Log the received message at DEBUG level in the specified format
+        LOGGER.info(f"Worker:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
+
+        if message_dic.get("message_type") == "register_ack":
+            LOGGER.info(f"Worker:{port} [INFO] Received register_ack from Manager. Starting heartbeat thread.")
+            threading.Thread(target=self.send_heartbeat, args=(host, port, signals)).start()
+
+        elif message_dic.get("message_type") == "shutdown":
+            self.signals["shutdown"] = True
+
+            # Wait for any active task to finish before shutdown
+            while self.task_in_progress:
+                LOGGER.info("Waiting for current task to complete before shutdown.")
+                time.sleep(1)
+
+            # Log the shutdown event at INFO level in the specified format
+            LOGGER.info(f"Worker:{port} [INFO] shutting down")
+            self.shutdown_event.set()
 
 @click.command()
 @click.option("--host", "host", default="localhost")
@@ -88,7 +103,6 @@ def main(host, port, manager_host, manager_port, logfile, loglevel):
     root_logger.addHandler(handler)
     root_logger.setLevel(loglevel.upper())
     Worker(host, port, manager_host, manager_port)
-
 
 if __name__ == "__main__":
     main()

@@ -5,10 +5,9 @@ import logging
 import json
 import time
 import click
-import mapreduce.utils
 import threading
-from mapreduce.utils import tcp_server,tcp_client,udp_client,udp_server,handle_func
-from mapreduce.utils import ThreadSafeOrderedDict
+from mapreduce.utils.network import tcp_server, udp_server  # Only import necessary utilities
+import socket
 # Call the function later
 # tcp_server(...)
 
@@ -54,25 +53,44 @@ class Manager:
         }
 
         self.threads = []
-        self.threads.append(threading.Thread(target=udp_server(host, port, self.signals, handle_func))) # listens to heartbeats 
-        self.threads.append(threading.Thread(target=tcp_server(host, port, self.signals, handle_func))) # listens to messages
-        self.threads.append(threading.Thread(target=self.fault_tolerance)) # monitor workers & reassign if dead
+        self.threads.append(threading.Thread(target=udp_server, args=(host, port, self.signals, self.handle_func)))  # listens to heartbeats
+        self.threads.append(threading.Thread(target=tcp_server, args=(host, port, self.signals, self.handle_func)))  # listens to messages
+        # self.threads.append(threading.Thread(target=self.fault_tolerance)) # monitor workers & reassign if dead
 
         for thread in self.threads:
             thread.start()
-
-        for thread in self.threads:
-           thread.join()
+            LOGGER.info("a thread has started ")
         
-        # message_dict = {
-        #     "message_type": "register",
-        #     "worker_host": "localhost",
-        #     "worker_port": 6001,
-        # }
-        # LOGGER.debug("TCP recv\n%s", json.dumps(message_dict, indent=2))
+        for thread in self.threads:
+            thread.join()
 
-        # time.sleep(120) #this should be removed after things are implemented
-        #wait to return from manager
+    def forward_shutdown(self):
+        shutdown_message = json.dumps({
+            "message_type": "shutdown"
+        }).encode("utf-8")
+
+        for (worker_host, worker_port) in self.workers:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                try:
+                    sock.connect((worker_host, worker_port))
+                    sock.sendall(shutdown_message)
+                except socket.error:
+                    LOGGER.error("Failed to send shutdown to worker %s:%s", worker_host, worker_port)
+
+        self.signals["shutdown"] = True
+        LOGGER.info("Manager shutting down")
+        
+    
+    def handle_func(self, host, port, signals, message_dic):
+        # if msg.get("message_type") == "register_ack":
+        #     LOGGER.info("Received register_ack from Manager. Starting heartbeat thread.")
+            # On receiving register_ack, start heartbeat thread
+            # threading.Thread(target=send_heartbeat, args=(host, port, signals)).start()
+        LOGGER.debug(f"Worker:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
+        if message_dic.get("message_type") == "shutdown":
+            self.forward_shutdown()
+
+
 
 @click.command()
 @click.option("--host", "host", default="localhost")
