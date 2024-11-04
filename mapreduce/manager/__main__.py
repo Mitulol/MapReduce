@@ -10,6 +10,8 @@ from queue import Queue
 from mapreduce.utils import ThreadSafeOrderedDict
 from mapreduce.utils.network import tcp_server, udp_server  # Only import necessary utilities
 import socket
+from pathlib import Path
+from queue import Empty
 # Call the function later
 # tcp_server(...)
 
@@ -47,6 +49,11 @@ class RemoteWorker:
         self.is_alive = True
     def assign_task(self, task):
         """Assign task to this Worker."""
+        self.worker_id["state"] = "busy"
+        message = json.dumps(task).encode("utf-8")
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((self.worker_id["host"], self.worker_id["port"]))
+            sock.sendall(message)
     def unassign_task(self):
         """Unassign task and return it, e.g., when Worker is marked dead."""
     def mark_as_dead(self):
@@ -68,11 +75,13 @@ class Manager:
         }
         self.current_job_id = 0
         self.job_queue = Queue()
+        
 
         self.threads = []
         self.threads.append(threading.Thread(target=udp_server, args=(host, port, self.signals, self.handle_func)))  # listens to heartbeats
         self.threads.append(threading.Thread(target=tcp_server, args=(host, port, self.signals, self.handle_func)))  # listens to messages
         # self.threads.append(threading.Thread(target=self.fault_tolerance)) # monitor workers & reassign if dead
+        self.threads.append(threading.Thread(target=self.process_jobs))
 
         for thread in self.threads:
             thread.start()
@@ -80,7 +89,7 @@ class Manager:
         
         for thread in self.threads:
             thread.join()
-
+    
     def forward_shutdown(self):
         shutdown_message = json.dumps({
             "message_type": "shutdown"
@@ -119,12 +128,7 @@ class Manager:
         job_id = self.current_job_id
         self.current_job_id += 1
         job = Job(job_id, job_data)
-        if job_id not in self.jobs_queue:
-            self.jobs_queue[job_id] = []
-        self.jobs_queue[job_id].append(job)
-        for task in job_data["tasks"]:
-            job.add_task(task)
-
+        self.job_queue.put(job)
         LOGGER.info("Job %d enqueued", job_id)
 
     def handle_func(self, host, port, signals, message_dic):
@@ -135,16 +139,83 @@ class Manager:
             self.handle_registration(message_dic)
         elif message_dic.get("message_type") == "new_manager_job":
             self.enqueue_job(message_dic)
+        elif message_dic.get("message_type") == "finished":
+            LOGGER.info("HIIIIIIIII")
 
     def run_job(self, job):
-        job_id = job['job_id']
-        output_dir = job['output_directory']
+        job_id = job.job_id
+        output_dir = Path(job.job_data["output_directory"])
 
+        if output_dir.exists():
+            LOGGER.info("Removing existing output directory: %s", output_dir)
+            for item in output_dir.rglob('*'):
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    item.rmdir()
+            output_dir.rmdir()  # Remove the output directory itself after clearing contents
+        output_dir.mkdir(parents=True, exist_ok=False)
+        LOGGER.info("Created output directory: %s", output_dir)
 
+        prefix = f"mapreduce-shared-job{job_id:05d}-"
+        with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
+            LOGGER.info("Created tmpdir %s", tmpdir)
+            # time.sleep(10)
 
+            input_dir = Path(job.job_data["input_directory"])
+            # input_files = list(input_dir.glob('**/*'))
+            input_files = sorted(input_dir.iterdir())
+
+            num_mappers = job.job_data["num_mappers"]
+            partitions = [[] for _ in range(num_mappers)]
+            for i, input_file in enumerate(input_files):
+                partitions[i % num_mappers].append(str(input_file))
             
 
+            for task_id, partition in enumerate(partitions):
+                task_data = {
+                    "message_type": "new_map_task",
+                    "task_id": task_id,
+                    "input_paths": partition,
+                    "executable": job.job_data["mapper_executable"],
+                    "output_directory": str(tmpdir),
+                    "num_partitions": job.job_data["num_reducers"],
+                }
+                job.add_task(task_data)
 
+            while not self.signals["shutdown"]: ##later come back and add the task stuff here
+                task = job.next_task()
+                if not task:
+                    LOGGER.info("No more tasks to process for job %d", job.job_id)
+                    break
+                available_worker = self.get_available_worker()
+                if available_worker:
+                    self.assign_task(available_worker, task)
+                else:
+                    time.sleep(0.1)
+                LOGGER.info("Processing task %s for job %d", task, job.job_id)
+                job.task_finished(task)
+
+            LOGGER.info("Job %d completed or shutdown signal received", job.job_id)
+        LOGGER.info("Cleaned up tmpdir %s", tmpdir)
+
+    def process_jobs(self):
+        while not self.signals["shutdown"]:
+            try:
+                job = self.job_queue.get(timeout=1)
+                LOGGER.info(f"Starting job {job.job_id}")
+                self.run_job(job)
+                self.job_queue.task_done()
+            except Empty:
+                continue
+
+    def get_available_worker(self):
+        for worker_id, worker_info in self.workers.items():
+            if worker_info["state"] == "ready":
+                return worker_id
+        return None
+
+    
 
 @click.command()
 @click.option("--host", "host", default="localhost")
