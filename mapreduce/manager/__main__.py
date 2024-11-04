@@ -157,11 +157,11 @@ class Manager:
         elif message_dic.get("message_type") == "finished":
             LOGGER.info("HIIIIIIIII")
 
-    def run_job(self): # remember to pop job off queue, and tasks, communicate task over tcp socket
-        self.job_executing = True
-        curr_job = self.job_queue.get()
-        job_id = curr_job.job_id
-        output_dir = Path(curr_job.job_data["output_directory"])
+    def run_job(self, job): # remember to pop job off queue, and tasks, communicate task over tcp socket
+        # self.job_executing = True
+        # curr_job = self.job_queue.get()
+        job_id = job.job_id
+        output_dir = Path(job.job_data["output_directory"])
 
         if output_dir.exists():
             LOGGER.info("Removing existing output directory: %s", output_dir)
@@ -176,23 +176,18 @@ class Manager:
 
         prefix = f"mapreduce-shared-job{job_id:05d}-"
         with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
-            
             LOGGER.info("Created tmpdir %s", tmpdir)
-            # time.sleep(2)
+            time.sleep(2)
 
-            input_dir = Path(curr_job.job_data["input_directory"]).resolve()
-            if not input_dir.is_dir():
-                LOGGER.error("The directory '%s' does not exist.", directory)
-                return []
+            input_dir = Path(job.job_data["input_directory"])
             # input_files = list(input_dir.glob('**/*'))
             input_files = sorted(input_dir.iterdir())
             LOGGER.info("Input files %s", input_files)
 
-            num_mappers = curr_job.job_data["num_mappers"]
-            self.num_map_tasks = num_mappers
+            num_mappers = job.job_data["num_mappers"]
             partitions = [[] for _ in range(num_mappers)]
             for i, input_file in enumerate(input_files):
-                partitions[i % num_mappers].append(input_file)
+                partitions[i % num_mappers].append(str(input_file))
             LOGGER.info("Created partitions %s", partitions)
             
 
@@ -201,22 +196,22 @@ class Manager:
                     "message_type": "new_map_task",
                     "task_id": task_id,
                     "input_paths": partition,
-                    "executable": curr_job.job_data["mapper_executable"],
+                    "executable": job.job_data["mapper_executable"],
                     "output_directory": str(tmpdir),
-                    "num_partitions": curr_job.job_data["num_reducers"],
+                    "num_partitions": job.job_data["num_reducers"],
                 }
                 LOGGER.info("task_id %s", task_id)
                 LOGGER.info("task_data %s", task_data)
-                curr_job.add_task(task_data)
+                job.add_task(task_data)
             LOGGER.info("job_id %s", job_id)
-            LOGGER.info("job.data %s", curr_job.job_data)
+            LOGGER.info("job.data %s", job.job_data)
 
-            task = self.task[0]
-            while self.num_map_tasks > 0 and not self.signals["shutdown"] and len(self.tasks) > 0: ##later come back and add the task stuff here
+            while not self.signals["shutdown"]: ##later come back and add the task stuff here
+                task = job.next_task()
                 if not task:
-                    LOGGER.info("No more tasks to process for job %d", curr_job.job_id)
+                    LOGGER.info("No more tasks to process for job %d", job.job_id)
                     break
-
+                
                 available_worker = self.get_available_worker()
                 LOGGER.info("available_worker %s", available_worker)
                 if available_worker:
@@ -226,18 +221,17 @@ class Manager:
                     worker_info = self.workers[available_worker]
                     worker_info["state"] = "ready"
                     LOGGER.info("ay %s", worker_info["state"])
-                    curr_job.remove_task(task)
+                    job.remove_task(task)
                     LOGGER.info("removed!@")
-                    curr_job.task_finished(task)
+                    job.task_finished(task)
                     LOGGER.info("finished!@")
+
                 else:
                     time.sleep(0.1)
-
-                task = curr_job.next_task()
-                LOGGER.info("Processing task %s for job %d", task, curr_job.job_id)
+                LOGGER.info("Processing task %s for job %d", task, job.job_id)
                 
 
-            LOGGER.info("Job %d completed or shutdown signal received", curr_job.job_id)
+            LOGGER.info("Job %d completed or shutdown signal received", job.job_id)
         LOGGER.info("Cleaned up tmpdir %s", tmpdir)
 
     def process_jobs(self):
