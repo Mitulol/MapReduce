@@ -39,6 +39,11 @@ class Job:
     def task_finished(self, task):
         """Mark a pending task as completed."""
         self.completed_tasks.append(task)
+    
+    def remove_task(self, task):
+        """Remove a task from the completed task list - if needed for some reason."""
+        if task in self.completed_tasks:
+            self.completed_tasks.remove(task)
 
 
 class RemoteWorker:
@@ -47,15 +52,22 @@ class RemoteWorker:
         self.address = address
         self.current_task = None
         self.is_alive = True
-    def assign_task(self, task):
-        """Assign task to this Worker."""
-        self.worker_id["state"] = "busy"
-        message = json.dumps(task).encode("utf-8")
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.connect((self.worker_id["host"], self.worker_id["port"]))
-            sock.sendall(message)
-    def unassign_task(self):
-        """Unassign task and return it, e.g., when Worker is marked dead."""
+        
+    # def assign_task(self, task):
+    #     """Assign task to this Worker and send task data over network."""
+    #     self.current_task = task
+    #     self.is_alive = True  # Mark as active
+    #     message = json.dumps(task).encode("utf-8")
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+    #         try:
+    #             sock.connect(self.address)
+    #             sock.sendall(message)
+    #             LOGGER.info(f"Task {task['task_id']} assigned to worker at {self.address}")
+    #         except socket.error:
+    #             LOGGER.error(f"Failed to send task {task['task_id']} to worker at {self.address}")
+    #             self.mark_as_dead()
+    # def unassign_task(self):
+    #     """Unassign task and return it, e.g., when Worker is marked dead."""
     def mark_as_dead(self):
         self.is_alive = False
         self.current_task = None
@@ -70,11 +82,14 @@ class Manager:
         self.host = host
         self.port = port
         self.workers = ThreadSafeOrderedDict()
+        self.job_executing = False
         self.signals = {
             "shutdown": False
         }
         self.current_job_id = 0
         self.job_queue = Queue()
+        self.tasks = []
+        self.num_map_tasks = 0
         
 
         self.threads = []
@@ -142,9 +157,11 @@ class Manager:
         elif message_dic.get("message_type") == "finished":
             LOGGER.info("HIIIIIIIII")
 
-    def run_job(self, job):
-        job_id = job.job_id
-        output_dir = Path(job.job_data["output_directory"])
+    def run_job(self): # remember to pop job off queue, and tasks, communicate task over tcp socket
+        self.job_executing = True
+        curr_job = self.job_queue.get()
+        job_id = curr_job.job_id
+        output_dir = Path(curr_job.job_data["output_directory"])
 
         if output_dir.exists():
             LOGGER.info("Removing existing output directory: %s", output_dir)
@@ -159,17 +176,24 @@ class Manager:
 
         prefix = f"mapreduce-shared-job{job_id:05d}-"
         with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
+            
             LOGGER.info("Created tmpdir %s", tmpdir)
-            # time.sleep(10)
+            # time.sleep(2)
 
-            input_dir = Path(job.job_data["input_directory"])
+            input_dir = Path(curr_job.job_data["input_directory"]).resolve()
+            if not input_dir.is_dir():
+                LOGGER.error("The directory '%s' does not exist.", directory)
+                return []
             # input_files = list(input_dir.glob('**/*'))
             input_files = sorted(input_dir.iterdir())
+            LOGGER.info("Input files %s", input_files)
 
-            num_mappers = job.job_data["num_mappers"]
+            num_mappers = curr_job.job_data["num_mappers"]
+            self.num_map_tasks = num_mappers
             partitions = [[] for _ in range(num_mappers)]
             for i, input_file in enumerate(input_files):
-                partitions[i % num_mappers].append(str(input_file))
+                partitions[i % num_mappers].append(input_file)
+            LOGGER.info("Created partitions %s", partitions)
             
 
             for task_id, partition in enumerate(partitions):
@@ -177,26 +201,43 @@ class Manager:
                     "message_type": "new_map_task",
                     "task_id": task_id,
                     "input_paths": partition,
-                    "executable": job.job_data["mapper_executable"],
+                    "executable": curr_job.job_data["mapper_executable"],
                     "output_directory": str(tmpdir),
-                    "num_partitions": job.job_data["num_reducers"],
+                    "num_partitions": curr_job.job_data["num_reducers"],
                 }
-                job.add_task(task_data)
+                LOGGER.info("task_id %s", task_id)
+                LOGGER.info("task_data %s", task_data)
+                curr_job.add_task(task_data)
+            LOGGER.info("job_id %s", job_id)
+            LOGGER.info("job.data %s", curr_job.job_data)
 
-            while not self.signals["shutdown"]: ##later come back and add the task stuff here
-                task = job.next_task()
+            task = self.task[0]
+            while self.num_map_tasks > 0 and not self.signals["shutdown"] and len(self.tasks) > 0: ##later come back and add the task stuff here
                 if not task:
-                    LOGGER.info("No more tasks to process for job %d", job.job_id)
+                    LOGGER.info("No more tasks to process for job %d", curr_job.job_id)
                     break
+
                 available_worker = self.get_available_worker()
+                LOGGER.info("available_worker %s", available_worker)
                 if available_worker:
+                    LOGGER.info("is avali")
                     self.assign_task(available_worker, task)
+                    LOGGER.info("assigned!@")
+                    worker_info = self.workers[available_worker]
+                    worker_info["state"] = "ready"
+                    LOGGER.info("ay %s", worker_info["state"])
+                    curr_job.remove_task(task)
+                    LOGGER.info("removed!@")
+                    curr_job.task_finished(task)
+                    LOGGER.info("finished!@")
                 else:
                     time.sleep(0.1)
-                LOGGER.info("Processing task %s for job %d", task, job.job_id)
-                job.task_finished(task)
 
-            LOGGER.info("Job %d completed or shutdown signal received", job.job_id)
+                task = curr_job.next_task()
+                LOGGER.info("Processing task %s for job %d", task, curr_job.job_id)
+                
+
+            LOGGER.info("Job %d completed or shutdown signal received", curr_job.job_id)
         LOGGER.info("Cleaned up tmpdir %s", tmpdir)
 
     def process_jobs(self):
@@ -214,6 +255,30 @@ class Manager:
             if worker_info["state"] == "ready":
                 return worker_id
         return None
+    
+    def assign_task(self, worker_id, task):
+        """Assign task to this Worker."""
+        LOGGER.info("1 fffff")
+        worker_info = self.workers[worker_id]
+        LOGGER.info("worker_info %s", worker_info)
+        worker_info["state"] = "busy"
+        message = json.dumps(task).encode("utf-8")
+        LOGGER.info("message %s", message)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            try:
+                LOGGER.info("2 fffffe")
+                sock.connect((worker_info["host"], worker_info["port"]))
+                LOGGER.info("4546 fffffe")
+                sock.sendall(message)
+                LOGGER.info("ehhru fffffe")
+                return True
+            except socket.error:
+                LOGGER.error(f"Failed to send task {task['task_id']} to worker at {self.address}")
+                self.mark_as_dead()
+                task["worker_id"] = worker_id
+                return False
+            
+        LOGGER.info(f"Assigned task {task['task_id']} to worker {worker_id}")
 
     
 

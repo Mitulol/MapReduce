@@ -29,6 +29,7 @@ class Worker:
 
         # Start TCP server to listen for messages
         self.threads = []
+        
         self.threads.append(threading.Thread(target=tcp_server, args=(host, port, self.signals, self.handle_func)))
         # self.send_registration_message_to_manager()
 
@@ -36,6 +37,7 @@ class Worker:
             thread.start()
 
         self.register_with_manager(host, port, self.signals)
+        
         
         for thread in self.threads:
             thread.join()
@@ -91,6 +93,8 @@ class Worker:
             heartbeat_thread = threading.Thread(target=self.send_heartbeat)
             heartbeat_thread.start()
             self.threads.append(heartbeat_thread)
+        if message_dic.get("message_type") == "new_map_task":
+            print("HellooooQ")
         if message_dic.get("message_type") == "shutdown":
             self.signals["shutdown"] = True
 
