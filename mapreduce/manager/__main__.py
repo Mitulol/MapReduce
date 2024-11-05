@@ -149,7 +149,11 @@ class Manager:
     def handle_func(self, host, port, signals, message_dic):
         LOGGER.debug(f"Worker:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
         if message_dic.get("message_type") == "shutdown":
+            LOGGER.info("YOYOYOYOYOYOYOYOYOYOYOYO")
             self.forward_shutdown()
+            LOGGER.info("POOOOOOOOOOOOOOO")
+            LOGGER.info("rahhhhhhh")
+            
         elif message_dic.get("message_type") == "register":
             self.handle_registration(message_dic)
         elif message_dic.get("message_type") == "new_manager_job":
