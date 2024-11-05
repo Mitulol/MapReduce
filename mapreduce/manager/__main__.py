@@ -83,6 +83,7 @@ class Manager:
         self.host = host
         self.port = port
         self.workers = ThreadSafeOrderedDict()
+        self.stage = "map"
         self.job_executing = False
         self.signals = {
             "shutdown": False
@@ -90,7 +91,7 @@ class Manager:
         self.current_job_id = 0
         self.job_queue = Queue()
         # self.total_tasks_todo = []
-        # self.num_map_tasks_todo = 0
+        self.num_map_tasks= 0
         
         self.threads = []
         self.threads.append(threading.Thread(target=udp_server, args=(host, port, self.signals, self.handle_func)))  # listens to heartbeats
@@ -107,20 +108,25 @@ class Manager:
             thread.join()
     
     def forward_shutdown(self):
-        shutdown_message = json.dumps({
+        shutdown_message = {
             "message_type": "shutdown"
-        }).encode("utf-8")
+        }
 
-        for (worker_host, worker_port) in self.workers:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        for worker in self.workers.values():
+            if worker.status != 'dead':
                 try:
-                    sock.connect((worker_host, worker_port))
-                    sock.sendall(shutdown_message)
-                except socket.error:
-                    
-                    LOGGER.error("Failed to send shutdown to worker %s:%s", worker_host, worker_port)
+                    tcp_client(worker.host, worker.port, shutdown_message)
+                except ConnectionRefusedError:
+                    worker.status = 'dead'
 
-        self.signals["shutdown"] = True
+            # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            #     try:
+            #         sock.connect((worker_host, worker_port))
+            #         sock.sendall(shutdown_message)
+            #     except socket.error:
+                    
+            #         LOGGER.error("Failed to send shutdown to worker %s:%s", worker_host, worker_port)
+
         LOGGER.info("Manager shutting down")
         
     def handle_registration(self, message_dict):
@@ -151,16 +157,21 @@ class Manager:
     def handle_func(self, host, port, signals, message_dic):
         LOGGER.debug(f"Worker:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
         if message_dic.get("message_type") == "shutdown":
+            self.signals["shutdown"] = True
             self.forward_shutdown()
         if message_dic.get("message_type") == "register":
             self.handle_registration(message_dic)
         if message_dic.get("message_type") == "new_manager_job":
             self.enqueue_job(message_dic)
         if message_dic.get("message_type") == "finished":
-            LOGGER.info("HIIIIIIIII")
+            # finish other tasks- if in map, reduce tasks by 1 and if map and tasks is 0, switch to reduce
+            if self.stage == "map" and 
         if message_dic.get("message_type") == "heartbeat":
             LOGGER.info("HEART")
+
+    # def finished():
         
+
         
     def run_job(self, job): # remember to pop job off queue, and tasks, communicate task over tcp socket
         self.job_executing = True
@@ -222,7 +233,9 @@ class Manager:
                 LOGGER.info("Processing task %s for job %d", task, job.job_id)
                 
             LOGGER.info("Job %d completed or shutdown signal received", job.job_id)
+            LOGGER.info("shutdown signal%s", self.signals["shutdown"])
         LOGGER.info("Cleaned up tmpdir %s", tmpdir)
+
 
     def process_jobs(self):
         while not self.signals["shutdown"]:
@@ -233,6 +246,8 @@ class Manager:
                 
 
     def mapping_tasks(self, task):
+        self.stage = "map"
+        self.num_map_tasks += 1
         workerfound = False
         while not workerfound:
             for worker_id, remotework in self.workers.items(): #remote work contains a RemoteWorker
