@@ -113,11 +113,11 @@ class Manager:
         }
 
         for worker in self.workers.values():
-            if worker.status != 'dead':
+            if worker.state != 'dead':
                 try:
                     tcp_client(worker.host, worker.port, shutdown_message)
                 except ConnectionRefusedError:
-                    worker.status = 'dead'
+                    worker.state = 'dead'
 
             # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             #     try:
@@ -165,19 +165,42 @@ class Manager:
             self.enqueue_job(message_dic)
         if message_dic.get("message_type") == "finished":
             # finish other tasks- if in map, reduce tasks by 1 and if map and tasks is 0, switch to reduce
-            if self.stage == "map" and 
+            self.handle_finished(message_dic)
         if message_dic.get("message_type") == "heartbeat":
             LOGGER.info("HEART")
 
-    # def finished():
-        
+    def handle_finished(self, message_dic):
+        """Handle a 'finished' message indicating a map task completion."""
+        LOGGER.info("Received 'finished' message for task %s from worker %s:%s",
+                    message_dic["task_id"], message_dic["worker_host"], message_dic["worker_port"])
+
+        # Decrement the count of map tasks
+        self.num_map_tasks -= 1
+        LOGGER.info("Remaining map tasks: %d", self.num_map_tasks)
+
+        # Mark the worker as ready
+        worker_id = (message_dic["worker_host"], message_dic["worker_port"])
+        if worker_id in self.workers:
+            self.workers[worker_id].state = "ready"
+            self.workers[worker_id].current_task = None
+
+        # If all map tasks are completed, initiate shutdown
+        if self.num_map_tasks == 0:
+            LOGGER.info("All map tasks completed for the current job.")
+            self.stage = "complete"  # Indicate that no further processing is required
+            self.job_executing = False  # Mark job as complete
+            self.signals["shutdown"] = True
+            self.forward_shutdown()
+
 
         
-    def run_job(self, job): # remember to pop job off queue, and tasks, communicate task over tcp socket
+    def run_job(self, job):
+        """Execute a job and process all its tasks."""
         self.job_executing = True
         job_id = job.job_id
         output_dir = Path(job.job_data["output_directory"])
 
+        # Clean up existing output directory, if any
         if output_dir.exists():
             LOGGER.info("Removing existing output directory: %s", output_dir)
             for item in output_dir.rglob('*'):
@@ -189,13 +212,13 @@ class Manager:
         output_dir.mkdir(parents=True, exist_ok=False)
         LOGGER.info("Created output directory: %s", output_dir)
 
+        # Set up temporary directory for intermediate map outputs
         prefix = f"mapreduce-shared-job{job_id:05d}-"
         with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
             LOGGER.info("Created tmpdir %s", tmpdir)
             time.sleep(2)
 
             input_dir = Path(job.job_data["input_directory"])
-            # input_files = list(input_dir.glob('**/*'))
             input_files = sorted(input_dir.iterdir())
             LOGGER.info("Input files %s", input_files)
 
@@ -204,8 +227,8 @@ class Manager:
             for i, input_file in enumerate(input_files):
                 partitions[i % num_mappers].append(str(input_file))
             LOGGER.info("Created partitions %s", partitions)
-            
 
+            # Add tasks to the job queue
             for task_id, partition in enumerate(partitions):
                 task_data = {
                     "message_type": "new_map_task",
@@ -215,27 +238,13 @@ class Manager:
                     "output_directory": str(tmpdir),
                     "num_partitions": job.job_data["num_reducers"],
                 }
-                LOGGER.info("task_id %s", task_id)
-                LOGGER.info("task_data %s", task_data)
                 job.add_task(task_data)
-            LOGGER.info("job_id %s", job_id)
-            LOGGER.info("job.data %s", job.job_data)
 
-            while not self.signals["shutdown"] and job.tasks.qsize() > 0: ##later come back and add the task stuff here
-                task = job.next_task()
-                if not task:
-                    LOGGER.info("No more tasks to process for job %d", job.job_id)
-                    break
-                
-                self.mapping_tasks(task)
-                job.task_finished(task)
-                
-                LOGGER.info("Processing task %s for job %d", task, job.job_id)
-                
-            LOGGER.info("Job %d completed or shutdown signal received", job.job_id)
-            LOGGER.info("shutdown signal%s", self.signals["shutdown"])
+            # Call mapping_tasks with the Job instance to process tasks
+            self.mapping_tasks(job)
+
         LOGGER.info("Cleaned up tmpdir %s", tmpdir)
-
+        self.job_executing = False
 
     def process_jobs(self):
         while not self.signals["shutdown"]:
@@ -243,52 +252,44 @@ class Manager:
                 job = self.job_queue.get(timeout=1)
                 LOGGER.info(f"Starting job {job.job_id}")
                 self.run_job(job)
+        LOGGER.info("Shutdown signal received. Stopping job processing.")
                 
 
-    def mapping_tasks(self, task):
+    def mapping_tasks(self, job):
+        """Assign map tasks to workers as they become available."""
         self.stage = "map"
-        self.num_map_tasks += 1
-        workerfound = False
-        while not workerfound:
-            for worker_id, remotework in self.workers.items(): #remote work contains a RemoteWorker
-                if remotework.is_alive and remotework.current_task is None:
-                    remotework.state = "busy"
-                    try:
-                        tcp_client(remotework.host,remotework.port,task)
-                        workerfound = True
-                        remotework.state = "ready"
-                        break
-                    except:
-                        remotework.state = "dead"
-                        continue
+        self.num_map_tasks += job.tasks.qsize()
+        
+        while not self.signals["shutdown"] and not job.tasks.empty():
+            # Check if there are any available workers
+            available_worker = next((w for w in self.workers.values() if w.is_alive and w.state == "ready"), None)
 
-            if not workerfound:
+            if available_worker is None:
+                # If no workers are available, wait and check again
                 LOGGER.info("No available worker found. Retrying in 1 second...")
                 time.sleep(1)
-            
-    # def assign_task(self, worker_id, task):
-    #     """Assign task to this Worker."""
-    #     LOGGER.info("1 fffff")
-    #     worker_info = self.workers[worker_id]
-    #     LOGGER.info("worker_info %s", worker_info)
-    #     worker_info["state"] = "busy"
-    #     tcp_client(self.host,self.port,task)
-        # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        #     try:
-        #         LOGGER.info("2 fffffe")
-        #         sock.connect((worker_info["host"], worker_info["port"]))
-        #         LOGGER.info("4546 fffffe")
-        #         sock.sendall(message)
-        #         LOGGER.info("ehhru fffffe")
-        #         return True
-        #     except socket.error:
-        #         LOGGER.error(f"Failed to send task {task['task_id']} to worker at {self.address}")
-        #         self.mark_as_dead() 
-        #         task["worker_id"] = worker_id
-        #         return False
-            
-        # LOGGER.info(f"Assigned task {task['task_id']} to worker {worker_id}")
-    
+                continue
+
+            # Assign a task to the available worker
+            task = job.next_task()
+            if task:
+                try:
+                    # Update worker state to busy and send task
+                    available_worker.state = "busy"
+                    available_worker.current_task = task
+                    tcp_client(available_worker.host, available_worker.port, task)
+                    LOGGER.info("Assigned task %s to worker %s", task['task_id'], available_worker.worker_id)
+                except socket.error:
+                    # If there's an error sending the task, mark worker as dead
+                    LOGGER.error("Failed to send task to worker %s:%s. Marking as dead.", available_worker.host, available_worker.port)
+                    available_worker.mark_as_dead()
+                    job.task_reset(task)  # Requeue the task for another worker
+
+    def wait_for_task_completion(self, task):
+        """Wait until the task is completed by the worker."""
+        while any(w.current_task == task and w.state == "busy" for w in self.workers.values()):
+            time.sleep(0.5)  # Check every 0.5 seconds if the task is completed
+  
 
 @click.command()
 @click.option("--host", "host", default="localhost")
