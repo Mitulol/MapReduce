@@ -49,6 +49,8 @@ def tcp_server(host, port, signals, handle_func):
             #     continue
             try:
                 message_dict = json.loads(message_str)
+                LOGGER.info("this is the message dict: ",message_dict)
+                LOGGER.info("This is the message dict:\n%s", json.dumps(message_dict, indent=2))
                 LOGGER.debug(f"{host}:{port} [DEBUG] received\n{json.dumps(message_dict, indent=2)}")
             except json.JSONDecodeError:
                 continue
@@ -82,3 +84,20 @@ def udp_server(host, port, signals, handle_func):
             # Call the handler function with the received message
             handle_func(host, port, signals, message_dict)
 
+def tcp_client(host, port, msg):
+    
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+
+        # connect to the server
+        sock.connect((host, port))
+        message = json.dumps(msg).encode("utf-8")
+        sock.sendall(message)
+
+
+def udp_client(host, port, msg):
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+
+        # Connect to the UDP socket on server
+        sock.connect((host, port))
+        message = json.dumps(msg).encode("utf-8")
+        sock.sendall(message)

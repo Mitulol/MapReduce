@@ -1,14 +1,14 @@
 """MapReduce framework Manager node."""
-import os
 import tempfile
 import logging
 import json
 import time
 import click
+import shutil
 import threading
 from queue import Queue
 from mapreduce.utils import ThreadSafeOrderedDict
-from mapreduce.utils.network import tcp_server, udp_server  # Only import necessary utilities
+from mapreduce.utils.network import tcp_server, udp_server, tcp_client, udp_client  # Only import necessary utilities
 import socket
 from pathlib import Path
 from queue import Empty
@@ -47,12 +47,13 @@ class Job:
 
 
 class RemoteWorker:
-    def __init__(self, worker_id, address):
+    def __init__(self, worker_id, host, port):
         self.worker_id = worker_id
-        self.address = address
+        self.host = host
+        self.port = port
         self.current_task = None
         self.is_alive = True
-        
+        self.state = "ready"
     # def assign_task(self, task):
     #     """Assign task to this Worker and send task data over network."""
     #     self.current_task = task
@@ -88,19 +89,19 @@ class Manager:
         }
         self.current_job_id = 0
         self.job_queue = Queue()
-        self.tasks = []
-        self.num_map_tasks = 0
+        # self.total_tasks_todo = []
+        # self.num_map_tasks_todo = 0
         
-
         self.threads = []
         self.threads.append(threading.Thread(target=udp_server, args=(host, port, self.signals, self.handle_func)))  # listens to heartbeats
         self.threads.append(threading.Thread(target=tcp_server, args=(host, port, self.signals, self.handle_func)))  # listens to messages
-        # self.threads.append(threading.Thread(target=self.fault_tolerance)) # monitor workers & reassign if dead
-        self.threads.append(threading.Thread(target=self.process_jobs))
+        
 
         for thread in self.threads:
             thread.start()
             LOGGER.info("a thread has started ")
+        
+        self.process_jobs()
         
         for thread in self.threads:
             thread.join()
@@ -116,6 +117,7 @@ class Manager:
                     sock.connect((worker_host, worker_port))
                     sock.sendall(shutdown_message)
                 except socket.error:
+                    
                     LOGGER.error("Failed to send shutdown to worker %s:%s", worker_host, worker_port)
 
         self.signals["shutdown"] = True
@@ -123,19 +125,19 @@ class Manager:
         
     def handle_registration(self, message_dict):
         LOGGER.info(f"Manager:{self.port} [DEBUG] received\n{json.dumps(message_dict, indent=2)}")
-        worker_host = message_dict["worker_host"]
-        worker_port = message_dict["worker_port"]
-        worker_id = (worker_host, worker_port)
-        self.workers[worker_id] = {"state": "ready", "host": worker_host, "port": worker_port}
 
         register_ack_message = json.dumps({
             "message_type": "register_ack"
         }).encode("utf-8")
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             try:
-               sock.connect((worker_host, worker_port))
-               sock.sendall(register_ack_message)
-               LOGGER.info(f"Manager:{self.port} [INFO] registered worker {message_dict['worker_host']}:{message_dict['worker_port']}")
+                worker_host = message_dict["worker_host"]
+                worker_port = message_dict["worker_port"]
+                sock.connect((worker_host, worker_port))
+                sock.sendall(register_ack_message)
+                worker_id = (worker_host, worker_port)
+                self.workers[worker_id] = RemoteWorker(worker_id = worker_id,host= worker_host, port= worker_port)
+                LOGGER.info(f"Manager:{self.port} [INFO] registered worker {message_dict['worker_host']}:{message_dict['worker_port']}")
             except socket.error:
                LOGGER.error("Failed to acknowledge registration for worker %s:%s", worker_host, worker_port)
 
@@ -149,21 +151,19 @@ class Manager:
     def handle_func(self, host, port, signals, message_dic):
         LOGGER.debug(f"Worker:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
         if message_dic.get("message_type") == "shutdown":
-            LOGGER.info("YOYOYOYOYOYOYOYOYOYOYOYO")
             self.forward_shutdown()
-            LOGGER.info("POOOOOOOOOOOOOOO")
-            LOGGER.info("rahhhhhhh")
-            
-        elif message_dic.get("message_type") == "register":
+        if message_dic.get("message_type") == "register":
             self.handle_registration(message_dic)
-        elif message_dic.get("message_type") == "new_manager_job":
+        if message_dic.get("message_type") == "new_manager_job":
             self.enqueue_job(message_dic)
-        elif message_dic.get("message_type") == "finished":
+        if message_dic.get("message_type") == "finished":
             LOGGER.info("HIIIIIIIII")
-
+        if message_dic.get("message_type") == "heartbeat":
+            LOGGER.info("HEART")
+        
+        
     def run_job(self, job): # remember to pop job off queue, and tasks, communicate task over tcp socket
-        # self.job_executing = True
-        # curr_job = self.job_queue.get()
+        self.job_executing = True
         job_id = job.job_id
         output_dir = Path(job.job_data["output_directory"])
 
@@ -174,7 +174,7 @@ class Manager:
                     item.unlink()
                 elif item.is_dir():
                     item.rmdir()
-            output_dir.rmdir()  # Remove the output directory itself after clearing contents
+            shutil.rmtree(output_dir)
         output_dir.mkdir(parents=True, exist_ok=False)
         LOGGER.info("Created output directory: %s", output_dir)
 
@@ -210,74 +210,69 @@ class Manager:
             LOGGER.info("job_id %s", job_id)
             LOGGER.info("job.data %s", job.job_data)
 
-            while not self.signals["shutdown"]: ##later come back and add the task stuff here
+            while not self.signals["shutdown"] and job.tasks.qsize() > 0: ##later come back and add the task stuff here
                 task = job.next_task()
                 if not task:
                     LOGGER.info("No more tasks to process for job %d", job.job_id)
                     break
                 
-                available_worker = self.get_available_worker()
-                LOGGER.info("available_worker %s", available_worker)
-                if available_worker:
-                    LOGGER.info("is avali")
-                    self.assign_task(available_worker, task)
-                    LOGGER.info("assigned!@")
-                    worker_info = self.workers[available_worker]
-                    worker_info["state"] = "ready"
-                    LOGGER.info("ay %s", worker_info["state"])
-                    job.remove_task(task)
-                    LOGGER.info("removed!@")
-                    job.task_finished(task)
-                    LOGGER.info("finished!@")
-
-                else:
-                    time.sleep(0.1)
+                self.mapping_tasks(task)
+                job.task_finished(task)
+                
                 LOGGER.info("Processing task %s for job %d", task, job.job_id)
                 
-
             LOGGER.info("Job %d completed or shutdown signal received", job.job_id)
         LOGGER.info("Cleaned up tmpdir %s", tmpdir)
 
     def process_jobs(self):
         while not self.signals["shutdown"]:
-            try:
+            if self.job_queue.qsize() > 0 and not self.job_executing:
                 job = self.job_queue.get(timeout=1)
                 LOGGER.info(f"Starting job {job.job_id}")
                 self.run_job(job)
-                self.job_queue.task_done()
-            except Empty:
-                continue
+                
 
-    def get_available_worker(self):
-        for worker_id, worker_info in self.workers.items():
-            if worker_info["state"] == "ready":
-                return worker_id
-        return None
-    
-    def assign_task(self, worker_id, task):
-        """Assign task to this Worker."""
-        LOGGER.info("1 fffff")
-        worker_info = self.workers[worker_id]
-        LOGGER.info("worker_info %s", worker_info)
-        worker_info["state"] = "busy"
-        message = json.dumps(task).encode("utf-8")
-        LOGGER.info("message %s", message)
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            try:
-                LOGGER.info("2 fffffe")
-                sock.connect((worker_info["host"], worker_info["port"]))
-                LOGGER.info("4546 fffffe")
-                sock.sendall(message)
-                LOGGER.info("ehhru fffffe")
-                return True
-            except socket.error:
-                LOGGER.error(f"Failed to send task {task['task_id']} to worker at {self.address}")
-                self.mark_as_dead()
-                task["worker_id"] = worker_id
-                return False
+    def mapping_tasks(self, task):
+        workerfound = False
+        while not workerfound
+            for worker_id, remotework in self.workers.items(): #remote work contains a RemoteWorker
+                if remotework.is_alive and remotework.current_task is None:
+                    remotework.state = "busy"
+                    try:
+                        tcp_client(remotework.host,remotework.port,task)
+                        workerfound = True
+                        remotework.state = "ready"
+                        break
+                    except:
+                        remotework.state = "dead"
+                        continue
+
+            if not workerfound:
+                LOGGER.info("No available worker found. Retrying in 1 second...")
+                time.sleep(1)
             
-        LOGGER.info(f"Assigned task {task['task_id']} to worker {worker_id}")
-
+    # def assign_task(self, worker_id, task):
+    #     """Assign task to this Worker."""
+    #     LOGGER.info("1 fffff")
+    #     worker_info = self.workers[worker_id]
+    #     LOGGER.info("worker_info %s", worker_info)
+    #     worker_info["state"] = "busy"
+    #     tcp_client(self.host,self.port,task)
+        # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        #     try:
+        #         LOGGER.info("2 fffffe")
+        #         sock.connect((worker_info["host"], worker_info["port"]))
+        #         LOGGER.info("4546 fffffe")
+        #         sock.sendall(message)
+        #         LOGGER.info("ehhru fffffe")
+        #         return True
+        #     except socket.error:
+        #         LOGGER.error(f"Failed to send task {task['task_id']} to worker at {self.address}")
+        #         self.mark_as_dead() 
+        #         task["worker_id"] = worker_id
+        #         return False
+            
+        # LOGGER.info(f"Assigned task {task['task_id']} to worker {worker_id}")
     
 
 @click.command()
