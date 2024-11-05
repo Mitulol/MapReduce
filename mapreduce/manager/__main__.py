@@ -234,7 +234,7 @@ class Manager:
 
     def mapping_tasks(self, task):
         workerfound = False
-        while not workerfound
+        while not workerfound:
             for worker_id, remotework in self.workers.items(): #remote work contains a RemoteWorker
                 if remotework.is_alive and remotework.current_task is None:
                     remotework.state = "busy"
