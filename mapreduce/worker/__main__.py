@@ -6,6 +6,10 @@ import click
 import threading
 from mapreduce.utils.network import tcp_server
 import socket
+from pathlib import Path
+import subprocess
+import hashlib
+import tempfile
 
 # Set up logger
 LOGGER = logging.getLogger(__name__)
@@ -84,7 +88,55 @@ class Worker:
                 LOGGER.debug("Sent registration message to manager")
         except Exception as e:
             LOGGER.error(f"Failed to register with manager: {e}")
+
+    # The Mapping[worker] stage.
+    def handle_task(self, task):
+        """ Complete the assigned map task """
+        # 1. Run the map executable on the specified input files.
+        # 2. Partition output of the map executable into a new temporary directory, local to the Worker.
+        # 3. Sort each output file by line using UNIX sort.
+        # 4. Move each sorted output file to the shared temporary directory specified by the Manager.
+
+        # 1. create a temp directory local to the worker.
+        prefix = f"mapreduce-local-task{task.get("task_id"):05d}-"
+        with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
+            LOGGER.info("Created tmpdir %s", tmpdir)
+            # FIXME: Change this loop so that it runs either until shutdown 
+            # or when the job is completed.
+            while True:
+                time.sleep(0.1)
+        LOGGER.info("Cleaned up tmpdir %s", tmpdir)
+
+
         
+        executable =  Path(task.get("executable")) # map executable
+        input_paths =  task.get("input_paths") # map input filename
+        # A list of input paths. []
+        output_dir = Path(task.get("output_directory"))
+        task_id = task.get("task_id")
+        num_reducers = task.get("num_partitions")
+
+        # For now, I'm working with the assumption that there's only one input file
+        # I'll see what happens with multiple files later
+
+        # TODO: fix this later
+        input_path = Path(input_paths[0])        
+
+        with open(input_path) as infile:
+            with subprocess.Popen(
+                [executable],
+                stdin=infile,
+                stdout=subprocess.PIPE,
+                text=True,
+            ) as map_process:
+                for line in map_process.stdout:
+                    # Add line to correct partition output file
+                    hexdigest = hashlib.md5(key.encode("utf-8")).hexdigest()
+                    keyhash = int(hexdigest, base=16)
+                    partition_number = keyhash % num_partitions
+
+
+
         
     
     def handle_func(self, host, port, signals, message_dic):
@@ -97,7 +149,8 @@ class Worker:
             heartbeat_thread.start()
             self.threads.append(heartbeat_thread)
         if message_dic.get("message_type") == "new_map_task":
-            print("HellooooQ")
+            # print("HellooooQ")
+            handle_task(message_dic)
         if message_dic.get("message_type") == "shutdown":
             self.signals["shutdown"] = True
 
@@ -110,8 +163,6 @@ class Worker:
             LOGGER.info(f"Worker:{port} [INFO] shutting down")
             # self.shutdown_event.set() # QUESTION: what is this????
 
-
-    def mapping
        
 
 

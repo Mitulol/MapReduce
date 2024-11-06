@@ -54,21 +54,6 @@ class RemoteWorker:
         self.current_task = None
         self.is_alive = True
         self.state = "ready"
-    # def assign_task(self, task):
-    #     """Assign task to this Worker and send task data over network."""
-    #     self.current_task = task
-    #     self.is_alive = True  # Mark as active
-    #     message = json.dumps(task).encode("utf-8")
-    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-    #         try:
-    #             sock.connect(self.address)
-    #             sock.sendall(message)
-    #             LOGGER.info(f"Task {task['task_id']} assigned to worker at {self.address}")
-    #         except socket.error:
-    #             LOGGER.error(f"Failed to send task {task['task_id']} to worker at {self.address}")
-    #             self.mark_as_dead()
-    # def unassign_task(self):
-    #     """Unassign task and return it, e.g., when Worker is marked dead."""
     def mark_as_dead(self):
         self.is_alive = False
         self.current_task = None
@@ -90,8 +75,10 @@ class Manager:
         }
         self.current_job_id = 0
         self.job_queue = Queue()
+        self.current_job = None
         # self.total_tasks_todo = []
-        self.num_map_tasks= 0
+        self.num_map_tasks = 0
+        self.num_reduce_tasks= 0
         
         self.threads = []
         self.threads.append(threading.Thread(target=udp_server, args=(host, port, self.signals, self.handle_func)))  # listens to heartbeats
@@ -157,8 +144,7 @@ class Manager:
         LOGGER.info("Job %d enqueued", job_id)
 
     def handle_func(self, host, port, signals, message_dic):
-        # TODO: shouldnt this say Manager instead of worker?
-        LOGGER.debug(f"Worker:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
+        LOGGER.debug(f"Manager:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
         if message_dic.get("message_type") == "shutdown":
             self.signals["shutdown"] = True
             self.forward_shutdown()
@@ -178,22 +164,49 @@ class Manager:
                     message_dic["task_id"], message_dic["worker_host"], message_dic["worker_port"])
 
         # Decrement the count of map tasks
-        self.num_map_tasks -= 1
-        LOGGER.info("Remaining map tasks: %d", self.num_map_tasks)
+        if self.stage == "map":
 
-        # Mark the worker as ready
-        worker_id = (message_dic["worker_host"], message_dic["worker_port"])
-        if worker_id in self.workers:
-            self.workers[worker_id].state = "ready"
-            self.workers[worker_id].current_task = None
+            self.num_map_tasks -= 1
+            LOGGER.info("Remaining map tasks: %d", self.num_map_tasks)
 
-        # If all map tasks are completed, initiate shutdown
-        if self.num_map_tasks == 0:
-            LOGGER.info("All map tasks completed for the current job.")
-            self.stage = "complete"  # Indicate that no further processing is required
-            self.job_executing = False  # Mark job as complete
-            self.signals["shutdown"] = True
-            self.forward_shutdown()
+            # Mark the worker as ready
+            worker_id = (message_dic["worker_host"], message_dic["worker_port"])
+            if worker_id in self.workers:
+                self.workers[worker_id].state = "ready"
+                self.workers[worker_id].current_task = None
+
+            # If all map tasks are completed, initiate shutdown
+            if self.num_map_tasks == 0:
+                LOGGER.info("All map tasks completed for the current job.")
+                self.stage = "reduce"  # Indicate that no further processing is required
+                # self.job_executing = False  # Mark job as complete
+                # self.signals["shutdown"] = True
+                # self.forward_shutdown()
+                # self.reduce_tasks() 
+                
+        elif self.stage == "reduce":
+            self.num_reduce_tasks -= 1
+            LOGGER.info("Remaining map tasks: %d", self.num_map_tasks)
+
+            # Mark the worker as ready
+            worker_id = (message_dic["worker_host"], message_dic["worker_port"])
+            if worker_id in self.workers:
+                self.workers[worker_id].state = "ready"
+                self.workers[worker_id].current_task = None
+
+            # If all map tasks are completed, initiate shutdown
+            if self.num_reduce_tasks == 0:
+                LOGGER.info("All map tasks completed for the current job.")
+                self.stage = "map"  # Indicate that no further processing is required
+                # self.job_executing = False  # Mark job as complete
+                # self.signals["shutdown"] = True
+                # self.forward_shutdown()
+                # self.reduce_tasks()
+                self.run_job() #wronglol
+                # TODO: come back to fix
+
+                
+
 
 
     # Called my Main thread
@@ -219,7 +232,7 @@ class Manager:
         prefix = f"mapreduce-shared-job{job_id:05d}-"
         with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
             LOGGER.info("Created tmpdir %s", tmpdir)
-            time.sleep(2) # QUESTION: why is this here?
+            # time.sleep(2) # QUESTION: why is this here?
 
             input_dir = Path(job.job_data["input_directory"])
             input_files = sorted(input_dir.iterdir())
@@ -231,21 +244,20 @@ class Manager:
                 partitions[i % num_mappers].append(str(input_file))
             LOGGER.info("Created partitions %s", partitions)
 
-            # Add tasks to the job queue
-            for task_id, partition in enumerate(partitions):
-                task_data = {
-                    "message_type": "new_map_task",
-                    "task_id": task_id,
-                    "input_paths": partition,
-                    "executable": job.job_data["mapper_executable"],
-                    "output_directory": str(tmpdir),
-                    "num_partitions": job.job_data["num_reducers"],
-                }
-                job.add_task(task_data) # Adds to the queue of tasks in the job object
-
-            # Call mapping_tasks with the Job instance to process tasks
-            self.mapping_tasks(job)
-
+            self.mapping_tasks(partitions, tmpdir, job) # this function waits 
+            #all map tasks have been done
+            
+            #while map tasks have not been done
+            while self.num_map_tasks> 0:
+                print("Waiting for map tasks to complete...")
+                time.sleep(1)  # Sleep for 1 second (adjust time as needed)
+            #all map tasks are done, now reduce!
+            self.reduce_tasks(job)
+            #while reduce tasks have not been done
+            while self.num_reduce_tasks > 0:
+                print("Waiting for map tasks to complete...")
+                time.sleep(1)  # Sleep for 1 second (adjust time as needed)
+            
         LOGGER.info("Cleaned up tmpdir %s", tmpdir)
         self.job_executing = False
 
@@ -260,11 +272,41 @@ class Manager:
         LOGGER.info("Shutdown signal received. Stopping job processing.")
                 
     # Called by Main thread
-    def mapping_tasks(self, job):
+    def mapping_tasks(self, partitions, tmpdir, job):
         """Assign map tasks to workers as they become available."""
         self.stage = "map" # QUESTION: is this redundant?
         self.num_map_tasks += job.tasks.qsize()
-        
+
+        for task_id, partition in enumerate(partitions):
+            task_data = {
+                "message_type": "new_map_task",
+                "task_id": task_id,
+                "input_paths": partition,
+                "executable": job.job_data["mapper_executable"],
+                "output_directory": str(tmpdir),
+                "num_partitions": job.job_data["num_reducers"],
+            }
+            job.add_task(task_data)
+        self.send_message(job)
+
+    def reduce_tasks(self, partitions, tmpdir, job):
+        """Assign map tasks to workers as they become available."""
+        self.stage = "reduce" # QUESTION: is this redundant?
+        self.num_red += job.tasks.qsize()
+
+        for task_id, partition in enumerate(partitions):
+            task_data = {
+                "message_type": "new_map_task",
+                "task_id": task_id,
+                "input_paths": partition,
+                "executable": job.job_data["mapper_executable"],
+                "output_directory": str(tmpdir),
+                "num_partitions": job.job_data["num_reducers"],
+            }
+            job.add_task(task_data)
+        self.send_message(job)
+
+    def send_message(self, job):
         while not self.signals["shutdown"] and not job.tasks.empty():
             # Check if there are any available workers
             available_worker = next((w for w in self.workers.values() if w.is_alive and w.state == "ready"), None)
