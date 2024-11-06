@@ -129,6 +129,7 @@ class Manager:
 
         LOGGER.info("Manager shutting down")
         
+    # Called by TCP thread 
     def handle_registration(self, message_dict):
         LOGGER.info(f"Manager:{self.port} [DEBUG] received\n{json.dumps(message_dict, indent=2)}")
 
@@ -146,8 +147,9 @@ class Manager:
                 LOGGER.info(f"Manager:{self.port} [INFO] registered worker {message_dict['worker_host']}:{message_dict['worker_port']}")
             except socket.error:
                LOGGER.error("Failed to acknowledge registration for worker %s:%s", worker_host, worker_port)
+            # QUESTION: we need to assign a job to this worker right away, if we can
 
-    def enqueue_job(self, job_data):
+    def enqueue_job(self, job_data): # Just adds a job to the queue
         job_id = self.current_job_id
         self.current_job_id += 1
         job = Job(job_id, job_data)
@@ -155,6 +157,7 @@ class Manager:
         LOGGER.info("Job %d enqueued", job_id)
 
     def handle_func(self, host, port, signals, message_dic):
+        # TODO: shouldnt this say Manager instead of worker?
         LOGGER.debug(f"Worker:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
         if message_dic.get("message_type") == "shutdown":
             self.signals["shutdown"] = True
@@ -193,7 +196,7 @@ class Manager:
             self.forward_shutdown()
 
 
-        
+    # Called my Main thread
     def run_job(self, job):
         """Execute a job and process all its tasks."""
         self.job_executing = True
@@ -216,7 +219,7 @@ class Manager:
         prefix = f"mapreduce-shared-job{job_id:05d}-"
         with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
             LOGGER.info("Created tmpdir %s", tmpdir)
-            time.sleep(2)
+            time.sleep(2) # QUESTION: why is this here?
 
             input_dir = Path(job.job_data["input_directory"])
             input_files = sorted(input_dir.iterdir())
@@ -238,7 +241,7 @@ class Manager:
                     "output_directory": str(tmpdir),
                     "num_partitions": job.job_data["num_reducers"],
                 }
-                job.add_task(task_data)
+                job.add_task(task_data) # Adds to the queue of tasks in the job object
 
             # Call mapping_tasks with the Job instance to process tasks
             self.mapping_tasks(job)
@@ -246,23 +249,26 @@ class Manager:
         LOGGER.info("Cleaned up tmpdir %s", tmpdir)
         self.job_executing = False
 
+    # Called by Main thread
+    # QUESTION: does this thing ever stop??
     def process_jobs(self):
         while not self.signals["shutdown"]:
             if self.job_queue.qsize() > 0 and not self.job_executing:
-                job = self.job_queue.get(timeout=1)
+                job = self.job_queue.get(timeout=1) # QUESTION: whats this?, why the argument timeout = 1?
                 LOGGER.info(f"Starting job {job.job_id}")
                 self.run_job(job)
         LOGGER.info("Shutdown signal received. Stopping job processing.")
                 
-
+    # Called by Main thread
     def mapping_tasks(self, job):
         """Assign map tasks to workers as they become available."""
-        self.stage = "map"
+        self.stage = "map" # QUESTION: is this redundant?
         self.num_map_tasks += job.tasks.qsize()
         
         while not self.signals["shutdown"] and not job.tasks.empty():
             # Check if there are any available workers
             available_worker = next((w for w in self.workers.values() if w.is_alive and w.state == "ready"), None)
+            # gets the first available worker, following the order of registration convention
 
             if available_worker is None:
                 # If no workers are available, wait and check again
@@ -271,7 +277,7 @@ class Manager:
                 continue
 
             # Assign a task to the available worker
-            task = job.next_task()
+            task = job.next_task() # task is a JSON Object
             if task:
                 try:
                     # Update worker state to busy and send task
@@ -285,6 +291,7 @@ class Manager:
                     available_worker.mark_as_dead()
                     job.task_reset(task)  # Requeue the task for another worker
 
+    # QUESTION: Is this ever called??
     def wait_for_task_completion(self, task):
         """Wait until the task is completed by the worker."""
         while any(w.current_task == task and w.state == "busy" for w in self.workers.values()):

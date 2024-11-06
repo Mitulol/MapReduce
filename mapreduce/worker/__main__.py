@@ -21,7 +21,7 @@ class Worker:
         self.manager_port = manager_port
         self.signals = {"shutdown": False}
         self.task_in_progress = False  # Flag to indicate if a task is being processed
-        self.shutdown_event = threading.Event()  # Event to handle shutdown
+        # self.shutdown_event = threading.Event()  # Event to handle shutdown
 
         # Log initial worker info
         LOGGER.info(f"Worker:{port} Starting worker at {host}:{port}")
@@ -54,6 +54,7 @@ class Worker:
     #         LOGGER.info(f"Worker:{self.port} Sent registration message to Manager at {self.manager_host}:{self.manager_port}")
 
     def send_heartbeat(self, *args):
+        # QUESTION: again, we should use udp client?
         while not self.signals['shutdown']:
             try:
                 message = {
@@ -63,6 +64,7 @@ class Worker:
                 }
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
                     sock.sendto(json.dumps(message).encode(), (self.manager_host, self.manager_port))
+                    # QUESTION: cool syntax. is this the same thing as doing all that stuff in 3 lines?
                 time.sleep(2)  # Send heartbeat every 2 seconds
             except Exception as e:
                 LOGGER.error("Error sending heartbeat: %s", e)
@@ -75,6 +77,7 @@ class Worker:
                 "worker_host": self.host,
                 "worker_port": self.port,
             }).encode("utf-8")
+            # QUESTION: why not use the TCP Client function we made in network.py?
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.connect((self.manager_host, self.manager_port))
                 sock.sendall(register_message)
@@ -101,11 +104,14 @@ class Worker:
             # Wait for any active task to finish before shutdown
             while self.task_in_progress:
                 LOGGER.info("Waiting for current task to complete before shutdown.")
-                time.sleep(1)
+                time.sleep(1) # QUESTION: why is this here? To let the current task enough time to finish?
 
             # Log the shutdown event at INFO level in the specified format
             LOGGER.info(f"Worker:{port} [INFO] shutting down")
-            self.shutdown_event.set() 
+            # self.shutdown_event.set() # QUESTION: what is this????
+
+
+    def mapping
        
 
 
