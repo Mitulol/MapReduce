@@ -14,6 +14,7 @@ from pathlib import Path
 from queue import Empty
 # Call the function later
 # tcp_server(...)
+# Use Logger.debug instead of logger.info when printing debug logs, not major, can be skipped. Need to do in Worker also
 
 
 class Job:

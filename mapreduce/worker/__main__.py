@@ -4,12 +4,14 @@ import json
 import time
 import click
 import threading
-from mapreduce.utils.network import tcp_server
+from mapreduce.utils.network import tcp_server, udp_server, tcp_client, udp_client # TODO: remove the ones you didnt use, and change code to make use of these
 import socket
 from pathlib import Path
 import subprocess
 import hashlib
 import tempfile
+from contextlib import ExitStack
+import shutil
 
 # Set up logger
 LOGGER = logging.getLogger(__name__)
@@ -97,48 +99,104 @@ class Worker:
         # 3. Sort each output file by line using UNIX sort.
         # 4. Move each sorted output file to the shared temporary directory specified by the Manager.
 
-        # 1. create a temp directory local to the worker.
-        prefix = f"mapreduce-local-task{task.get("task_id"):05d}-"
-        with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
-            LOGGER.info("Created tmpdir %s", tmpdir)
-            # FIXME: Change this loop so that it runs either until shutdown 
-            # or when the job is completed.
-            while True:
-                time.sleep(0.1)
-        LOGGER.info("Cleaned up tmpdir %s", tmpdir)
-
-
-        
         executable =  Path(task.get("executable")) # map executable
-        input_paths =  task.get("input_paths") # map input filename
+
         # A list of input paths. []
+        input_paths =  task.get("input_paths") # map input filename
+        
         output_dir = Path(task.get("output_directory"))
         task_id = task.get("task_id")
         num_reducers = task.get("num_partitions")
 
-        # For now, I'm working with the assumption that there's only one input file
-        # I'll see what happens with multiple files later
+        # 1. create a temp directory local to the worker.
+        prefix = f"mapreduce-local-task{task.get("task_id"):05d}-"
+        with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
+            LOGGER.info("Worker:%d [INFO] Created tmpdir %s", self.port, tmpdir)
+            temp_dir_path = Path(tmpdir)
+            partition_files = [temp_dir_path/f"maptask{task_id:05d}-part{partition:05d}" for partition in range(num_reducers)]
 
-        # TODO: fix this later
-        input_path = Path(input_paths[0])        
+            # A list of the open file objects
+            # ExitStack() allows me to open multiple context maagers without having a crazy amount of with blocks
+            # Refer to ExitStack() and contextlib documentation
+            with ExitStack() as stack:
+                # Open files in append mode. This creates the files if they don't exist,
+                # and I don't have to worry about my data getting overwritten.
+                partition_files_context = [stack.enter_context(open(partition_file, 'a')) for partition_file in partition_files]
+            # with [open(file, "w") for file in partition_files] as partition_handles:
+                
+                # Loop through the input files
+                for input_path in input_paths:
+                    
+                    # Open each input file and run the provided map executable
+                    with open(input_path) as infile:
+                        with subprocess.Popen(
+                            [executable],
+                            stdin=infile,
+                            stdout=subprocess.PIPE,
+                            text=True,
+                        ) as map_process:
 
-        with open(input_path) as infile:
-            with subprocess.Popen(
-                [executable],
-                stdin=infile,
-                stdout=subprocess.PIPE,
-                text=True,
-            ) as map_process:
-                for line in map_process.stdout:
-                    # Add line to correct partition output file
-                    hexdigest = hashlib.md5(key.encode("utf-8")).hexdigest()
-                    keyhash = int(hexdigest, base=16)
-                    partition_number = keyhash % num_partitions
+                            # Loop through the output of the map line by line
+                            # This is the output of 1 input file.
+                            for line in map_process.stdout:
+                                # Add line to correct partition output file
+                                key, value = line.split("\t")
+
+                                hexdigest = hashlib.md5(key.encode("utf-8")).hexdigest()
+                                keyhash = int(hexdigest, base=16)
+                                partition_number = keyhash % num_reducers
+
+                                # Add the line to the correct parition file.
+                                # TODO: check if I need to write an extra /n at the end.
+                                # Just manually write Key\tvalue\n in that case
+                                partition_files_context[partition_number].write(line)
+
+                    # Log for each input file
+                    LOGGER.info(f"Worker:{self.port} [INFO] Executed {executable} input={input_path}")
+
+            # Close ExitStack here. Do the sorts outside the scope of the ExitStack
+            # Step 3: sort the partition files
+            for file in partition_files:
+                # LOGGER.info(f"Before sorting: File {partition_file}")
+
+                # TODO: REMOVE THIS AFTER DEBUGGING!!!
+                # Print the file contents before sorting
+                # with open(partition_file, 'r') as file:
+                #     file_contents = file.read()
+                #     LOGGER.info(f"Before sorting: Contents of {partition_file}:\n{file_contents}")
+
+                # partition_file_path = Path(partition_file)
+                subprocess.run(["sort", "-o", file, file], check=True)
+
+                # Print the file contents after sorting
+                # with open(partition_file, 'r') as file:
+                #     file_contents = file.read()
+                #     LOGGER.info(f"After sorting: Contents of {partition_file}:\n{file_contents}")
+
+                LOGGER.info(f"Worker:{self.port} [INFO] Sorted {file}")
+            
+            # Step 4: move the partition files to the output directory
+            for partition_file in partition_files:
+
+                # extra sanity code to make sure the name stays the same in the output_dir, not necessary.
+                shutil.move(partition_file, output_dir / partition_file.name)
+                LOGGER.info(f"Worker:{self.port} [INFO] Moved {partition_file} -> {output_dir / partition_file.name}")
 
 
+            # Step 5: Send message
+            finished_message = {
+                "message_type": "finished",
+                "task_id": task_id,
+                "worker_host": self.host,
+                "worker_port": self.port
+            }
 
-        
-    
+            tcp_client(self.manager_host, self.manager_port, finished_message)
+
+
+            LOGGER.info(f"Worker:{self.port} [INFO] Removed {temp_dir_path}")
+        # tempdir with ends here
+
     def handle_func(self, host, port, signals, message_dic):
         # Log the received message at DEBUG level in the specified format
         LOGGER.info(f"Worker:{port} [DEBUG] received\n{json.dumps(message_dic, indent=2)}")
@@ -150,7 +208,7 @@ class Worker:
             self.threads.append(heartbeat_thread)
         if message_dic.get("message_type") == "new_map_task":
             # print("HellooooQ")
-            handle_task(message_dic)
+            self.handle_task(message_dic)
         if message_dic.get("message_type") == "shutdown":
             self.signals["shutdown"] = True
 
