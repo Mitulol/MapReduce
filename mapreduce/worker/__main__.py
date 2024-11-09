@@ -12,6 +12,7 @@ import hashlib
 import tempfile
 from contextlib import ExitStack
 import shutil
+import heapq
 
 # Set up logger
 LOGGER = logging.getLogger(__name__)
@@ -92,7 +93,7 @@ class Worker:
             LOGGER.error(f"Failed to register with manager: {e}")
 
     # The Mapping[worker] stage.
-    def handle_task(self, task):
+    def handle_map_task(self, task):
         """ Complete the assigned map task """
         # 1. Run the map executable on the specified input files.
         # 2. Partition output of the map executable into a new temporary directory, local to the Worker.
@@ -194,8 +195,79 @@ class Worker:
             tcp_client(self.manager_host, self.manager_port, finished_message)
 
 
-            LOGGER.info(f"Worker:{self.port} [INFO] Removed {temp_dir_path}")
         # tempdir with ends here
+        LOGGER.info(f"Worker:{self.port} [INFO] Removed {temp_dir_path}")
+
+
+    def handle_reduce_task(self, task):
+        """Complete the assigned reduce task.
+        1. Merge input files into one sorted output stream.
+        2. Run the reduce executable on merged input, writing output to a single file.
+        3. Move the output file to the final output directory specified by the Manager.
+        
+        Each input file should already be sorted from the Map Stage.
+        """
+
+        # Reduce executable
+        executable = Path(task.get("executable"))
+
+        # A list of input paths. []
+        input_paths =  task.get("input_paths") # map input filename
+
+        output_dir = Path(task.get("output_directory"))
+        task_id = task.get("task_id")
+
+        prefix = f"mapreduce-local-task{task_id:05d}-"
+        with tempfile.TemporaryDirectory(prefix=prefix) as tmpdir:
+            LOGGER.info("Worker:%d [INFO] Created tmpdir %s", self.port, tmpdir)
+            temp_dir_path = Path(tmpdir)
+
+            # partition number = task_id TODO: verify. Most likely
+            temp_output_file = temp_dir_path/f"part-{task_id:05d}"
+
+            with open(temp_output_file, "a") as outfile:
+
+                with ExitStack() as stack:
+                    input_files = [stack.enter_context(open(path)) for path in input_paths]
+
+                    with subprocess.Popen(
+                        [executable],
+                        text=True,
+                        stdin=subprocess.PIPE,
+                        stdout=outfile,
+                    ) as reduce_process:
+                        
+                        for line in heapq.merge(*input_files):
+                            reduce_process.stdin.write(line)
+
+                        reduce_process.stdin.close()
+
+                        reduce_process.wait()
+            LOGGER.info(f"Worker:{self.port} [INFO] Executed {executable}")
+            # Outside the context of temp output file
+            # Move the output file to the final output directory
+            shutil.move(temp_output_file, output_dir / temp_output_file.name)
+            LOGGER.info(f"Worker:{self.port} [INFO] Moved {temp_output_file} -> {output_dir / temp_output_file.name}")
+
+            finished_message = {
+                "message_type": "finished",
+                "task_id": task_id,
+                "worker_host": self.host,
+                "worker_port": self.port
+            }
+
+            tcp_client(self.manager_host, self.manager_port, finished_message)
+
+        # tempdir with block ends here
+        LOGGER.info(f"Worker:{self.port} [INFO] Removed {temp_dir_path}")
+
+
+
+
+
+
+
+
 
     def handle_func(self, host, port, signals, message_dic):
         # Log the received message at DEBUG level in the specified format
@@ -208,7 +280,9 @@ class Worker:
             self.threads.append(heartbeat_thread)
         if message_dic.get("message_type") == "new_map_task":
             # print("HellooooQ")
-            self.handle_task(message_dic)
+            self.handle_map_task(message_dic)
+        if message_dic.get("message_type") == "new_reduce_task":
+            self.handle_reduce_task(message_dic)
         if message_dic.get("message_type") == "shutdown":
             self.signals["shutdown"] = True
 

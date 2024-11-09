@@ -15,7 +15,13 @@ from queue import Empty
 # Call the function later
 # tcp_server(...)
 # Use Logger.debug instead of logger.info when printing debug logs, not major, can be skipped. Need to do in Worker also
+# TODO: Add the ConnectionRefusedError case every time you try to send a message. Not done yet.
+# TODO: A Worker may die and then revive and re-register before the Manager is able to 
+# This means if an alive worker sends a second registration message, its because they died
+# at some point. Assume their task is lost and needs to be reassigned.
 
+# mark it as dead. Even if this happens, all tasks in the running job must be completed. 
+# Whether or not to use the Worker’s most recent registration when determining task assignment order is up to you.
 
 class Job:
    def __init__(self, job_id, job_data):
@@ -114,6 +120,7 @@ class Manager:
         LOGGER.info("Waiting for currently executing tasks to complete.")
         time.sleep(1)
     
+    # TODO: FIXME: use worker.is_alive, at the very least update its value here.
     # Notify all active workers of shutdown
     shutdown_message = {"message_type": "shutdown"}
     for worker in self.workers.values():
