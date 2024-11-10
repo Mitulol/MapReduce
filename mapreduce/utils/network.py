@@ -1,23 +1,24 @@
+"""Network."""
 import socket
 import logging
 import json
-import time
 
 # Set up logger
 LOGGER = logging.getLogger(__name__)
 
+
 def tcp_server(host, port, signals, handle_func):
-    """Continuously listens for messages and calls handle_func when a message is received."""
+    """Listen for messages and calls handle_func when message received."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((host, port))
         sock.listen()
-        LOGGER.info(f"TCP Server listening on {host}:{port}")
+        LOGGER.info("TCP Server listening on %s:%s", host, port)
         sock.settimeout(1)
 
         while not signals["shutdown"]:
             try:
-                clientsocket, address = sock.accept()
+                clientsocket, _ = sock.accept()
             except socket.timeout:
                 continue
             # LOGGER.info(f"Connection from {address}")
@@ -29,7 +30,7 @@ def tcp_server(host, port, signals, handle_func):
                     try:
                         data = clientsocket.recv(4096)
                         if data:
-                            LOGGER.debug(f"Received raw data: {data}")
+                            LOGGER.debug("Received raw data: %s", data)
                     except socket.timeout:
                         continue
                     if not data:
@@ -41,26 +42,27 @@ def tcp_server(host, port, signals, handle_func):
             LOGGER.info("message_str: %s", message_str)
 
             # try:
-            #     message_dict = json.loads(message_str)
-            #     # Log the received message at DEBUG level in the exact format specified
-            #     LOGGER.debug(f"{host}:{port} [DEBUG] received\n{json.dumps(message_dict, indent=2)}")
+            # message_dict = json.loads(message_str)
+            # Log the received message at DEBUG level
+            # in the exact format specified
             # except json.JSONDecodeError as e:
-            #     LOGGER.error(f"Failed to decode JSON message: {e} - Raw message: {message_bytes}")
             #     continue
             try:
                 message_dict = json.loads(message_str)
-                LOGGER.info("this is the message dict: ",message_dict)
-                LOGGER.info("This is the message dict:\n%s", json.dumps(message_dict, indent=2))
-                LOGGER.debug(f"{host}:{port} [DEBUG] received\n{json.dumps(message_dict, indent=2)}")
+                LOGGER.info("This is the message dict:\n%s",
+                            json.dumps(message_dict, indent=2))
+                LOGGER.debug("%s:%s [DEBUG] received\n%s", host,
+                             port, json.dumps(message_dict, indent=2))
             except json.JSONDecodeError:
                 continue
 
             # Call the handler function with the received message
-            handle_func(host, port, signals, message_dict)
-            
+            # handle_func(host, port, signals, message_dict)
+            handle_func(port, message_dict)
+
 
 def udp_server(host, port, signals, handle_func):
-    """Listens for messages over UDP and calls handle_func when a message is received."""
+    """Listen over UDP and calls handle_func when a msg is received."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((host, port))
@@ -75,17 +77,20 @@ def udp_server(host, port, signals, handle_func):
 
             try:
                 message_dict = json.loads(message_str)
-                # Log the received message at DEBUG level in the exact format specified
-                LOGGER.info(f"{host}:{port} [DEBUG] received\n{json.dumps(message_dict, indent=2)}")
+                # Log received message at DEBUG in exact format specified
+                LOGGER.debug("%s:%s received", host, port)
+                LOGGER.debug(json.dumps(message_dict, indent=2))
+
             except json.JSONDecodeError:
                 LOGGER.error("Failed to decode JSON message")
                 continue
 
             # Call the handler function with the received message
-            handle_func(host, port, signals, message_dict)
+            handle_func(port, message_dict)
+
 
 def tcp_client(host, port, msg):
-    
+    """Send over tcp."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
         # connect to the server
@@ -95,6 +100,7 @@ def tcp_client(host, port, msg):
 
 
 def udp_client(host, port, msg):
+    """Send over udp."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 
         # Connect to the UDP socket on server
