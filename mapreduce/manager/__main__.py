@@ -15,6 +15,7 @@ from queue import Empty
 # Call the function later
 # tcp_server(...)
 # Use Logger.debug instead of logger.info when printing debug logs, not major, can be skipped. Need to do in Worker also
+
 # TODO: Add the ConnectionRefusedError case every time you try to send a message. Not done yet.
 # TODO: A Worker may die and then revive and re-register before the Manager is able to 
 # This means if an alive worker sends a second registration message, its because they died
@@ -22,6 +23,10 @@ from queue import Empty
 
 # mark it as dead. Even if this happens, all tasks in the running job must be completed. 
 # Whether or not to use the Worker’s most recent registration when determining task assignment order is up to you.
+
+
+
+## self.is_alive and self.state == "dead" are interchangeable -- come back to fix this
 
 class Job:
    def __init__(self, job_id, job_data):
@@ -68,7 +73,9 @@ class RemoteWorker:
        self.current_task = None
        self.is_alive = True
        self.state = "ready"
+       self.received_first_heartbeat = False
    def mark_as_dead(self):
+       self.state = "dead"
        self.is_alive = False
        self.current_task = None
 
@@ -96,31 +103,97 @@ class Manager:
        # self.total_tasks_todo = []
        self.num_map_tasks = 0
        self.num_reduce_tasks= 0
+       self.last_heartbeat = ThreadSafeOrderedDict()
+       self.heartbeat_interval = 2  # Interval between heartbeats in seconds
+       self.heartbeat_timeout = 10  # change to 10
       
        self.threads = []
        self.threads.append(threading.Thread(target=udp_server, args=(host, port, self.signals, self.handle_func)))  # listens to heartbeats
        self.threads.append(threading.Thread(target=tcp_server, args=(host, port, self.signals, self.handle_func)))  # listens to messages
+       self.threads.append(threading.Thread(target=self.check_worker_heartbeats))
       
 
 
        for thread in self.threads:
            thread.start()
-           LOGGER.info("a thread has started ")
+           LOGGER.info(f"Started thread: {thread}")
       
        self.process_jobs()
       
        for thread in self.threads:
            thread.join()
+
+   def check_worker_heartbeats(self):
+        print("Checking heartbeats...")
+
+        LOGGER.info("Running heartbeat check...")
+        try:
+            # While manager is not shutdown
+            while not self.signals["shutdown"]:
+                LOGGER.info("Heartbeat check cycle running...")
+                current_time = time.time()
+                # Keep looping through all registered workers, checking their last heartbeat
+
+                # Potential bug here, only checking 1 worker.
+                # Maybe worker 3002 isn't added to this list.
+                # Worker 3002 isn't in this list.
+                for worker_id, last_time in list(self.last_heartbeat.items()):
+                    time_elapsed = current_time - last_time
+                    LOGGER.info(f"Checking heartbeat for Worker {worker_id}. Time elapsed: {time_elapsed}s")
+
+                    if time_elapsed > self.heartbeat_timeout:
+                        LOGGER.info(f"Worker {worker_id} has missed the heartbeat timeout.")
+                        if self.workers[worker_id].is_alive:
+                            LOGGER.info(f"Worker {worker_id} failed to send heartbeat within timeout. Marking as dead.")
+                            self.handle_worker_failure(worker_id)
+                    else:
+                        LOGGER.info(f"Worker {worker_id} heartbeat OK. Last seen {time_elapsed}s ago.")
+                time.sleep(1)
+        except Exception as e:
+            LOGGER.error(f"Error in check_worker_heartbeats: {e}")
+
+
+   def handle_heartbeat(self, message_dict):
+        print("HELLLOOOO")
+        worker_id = (message_dict["worker_host"], message_dict["worker_port"])
+        if worker_id in self.workers:
+            self.last_heartbeat[worker_id] = time.time()
+            self.workers[worker_id].received_first_heartbeat = True
+            LOGGER.info(f"Received heartbeat from {worker_id}, updated last_heartbeat time. {self.last_heartbeat[worker_id]}")
+        else:
+            LOGGER.warning(f"Heartbeat received from unknown worker {worker_id}. Ignoring.")
+
+
+   def handle_worker_failure(self, worker_id):
+        LOGGER.info("Handle_worker_fail")
+        worker = self.workers[worker_id]
+        # worker.mark_as_dead()
+        print(f"Worker {worker_id} marked as dead.")  # Simple print for debug
+        print(f"Worker {worker.current_task}")
+        # print("Worker: ", worker.current_task)
+        if worker.current_task is not None:
+            print("HELLLOOOO")
+            # Requeue the task so another worker can handle it
+            self.current_job.task_reset(worker.current_task)
+            LOGGER.info(f"Re-enqueued task {worker.current_task['task_id']} from failed worker {worker_id}.")
+        worker.mark_as_dead()
+        self.send_message(self.current_job)
   
    def forward_shutdown(self):
     LOGGER.info("Shutdown signal received. Completing current task before shutdown.")
     
     # Wait until all currently executing tasks are done
-    while any(worker.state == "busy" for worker in self.workers.values()):
-        LOGGER.info("Waiting for currently executing tasks to complete.")
+    while True:
+        busy_workers = False
+        for worker in self.workers.values():
+            if worker.state == "busy":
+                LOGGER.info(f"Worker {worker.worker_id} is still busy. Waiting...")
+                busy_workers = True
+                break  # Exit the loop early since we found a busy worker
+        if not busy_workers:
+            break  # All workers are ready; exit the outer loop
         time.sleep(1)
     
-    # TODO: FIXME: use worker.is_alive, at the very least update its value here.
     # Notify all active workers of shutdown
     shutdown_message = {"message_type": "shutdown"}
     for worker in self.workers.values():
@@ -133,8 +206,8 @@ class Manager:
     LOGGER.info("Manager shutting down after current tasks completed.")
    # Called by TCP thread
    def handle_registration(self, message_dict):
+       print("HI")
        LOGGER.info(f"Manager:{self.port} [DEBUG] received\n{json.dumps(message_dict, indent=2)}")
-
 
        register_ack_message = json.dumps({
            "message_type": "register_ack"
@@ -147,6 +220,7 @@ class Manager:
                sock.sendall(register_ack_message)
                worker_id = (worker_host, worker_port)
                self.workers[worker_id] = RemoteWorker(worker_id = worker_id,host= worker_host, port= worker_port)
+               self.last_heartbeat[worker_id] = time.time()
                LOGGER.info(f"Manager:{self.port} [INFO] registered worker {message_dict['worker_host']}:{message_dict['worker_port']}")
            except socket.error:
               LOGGER.error("Failed to acknowledge registration for worker %s:%s", worker_host, worker_port)
@@ -166,22 +240,21 @@ class Manager:
        if message_dic.get("message_type") == "shutdown":
            self.signals["shutdown"] = True
            self.forward_shutdown()
-       if message_dic.get("message_type") == "register":
+       elif message_dic.get("message_type") == "register":
            self.handle_registration(message_dic)
-       if message_dic.get("message_type") == "new_manager_job":
+       elif message_dic.get("message_type") == "new_manager_job":
            self.enqueue_job(message_dic)
-       if message_dic.get("message_type") == "finished":
+       elif message_dic.get("message_type") == "finished":
            # finish other tasks- if in map, reduce tasks by 1 and if map and tasks is 0, switch to reduce
            self.handle_finished(message_dic)
-       if message_dic.get("message_type") == "heartbeat":
-           LOGGER.info("HEART")
+       elif message_dic.get("message_type") == "heartbeat":
+           self.handle_heartbeat(message_dic)
 
 
    def handle_finished(self, message_dic):
        """Handle a 'finished' message indicating a map task completion."""
        LOGGER.info("Received 'finished' message for task %s from worker %s:%s",
                    message_dic["task_id"], message_dic["worker_host"], message_dic["worker_port"])
-
        # Decrement the count of map tasks
        if self.stage == "map":
            self.num_map_tasks -= 1
@@ -191,6 +264,8 @@ class Manager:
            worker_id = (message_dic["worker_host"], message_dic["worker_port"])
            if worker_id in self.workers:
                self.workers[worker_id].state = "ready"
+               LOGGER.info("Received 'finished' message for task %s from worker",
+                   self.workers[worker_id].state)
                self.workers[worker_id].current_task = None
 
            # If all map tasks are completed, initiate shutdown
@@ -209,6 +284,8 @@ class Manager:
            worker_id = (message_dic["worker_host"], message_dic["worker_port"])
            if worker_id in self.workers:
                self.workers[worker_id].state = "ready"
+               LOGGER.info("Received 'finished' message for task %s from worker",
+                   self.workers[worker_id].state)
                self.workers[worker_id].current_task = None
 
            # If all map tasks are completed, initiate shutdown
@@ -356,6 +433,7 @@ class Manager:
                    # Update worker state to busy and send task
                    available_worker.state = "busy"
                    available_worker.current_task = task
+                #    LOGGER.info("@!!@Assigned task %s to worker %s", task['task_id'], available_worker.worker_id)
                    tcp_client(available_worker.host, available_worker.port, task)
                    LOGGER.info("Assigned task %s to worker %s", task['task_id'], available_worker.worker_id)
                except socket.error:
@@ -399,4 +477,3 @@ def main(host, port, logfile, loglevel, shared_dir):
 
 if __name__ == "__main__":
    main()
-
