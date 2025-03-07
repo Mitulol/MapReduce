@@ -1,1 +1,388 @@
-Manager:6000 [INFO] Starting manager host=localhost port=6000 pwd=/Users/prishaagnihotri/Documents/eecs485/p4-mapreduce
+Manager:6000 [INFO] Started thread: <Thread(Thread-1 (udp_server), started 140393211008704)>
+Manager:6000 [INFO] Started thread: <Thread(Thread-2 (tcp_server), started 140393202616000)>
+Manager:6000 [INFO] TCP Server listening on localhost:6000
+Manager:6000 [INFO] Started thread: <Thread(Thread-3 (check_worker_heartbeats), started 140393194223296)>
+Manager:6000 [INFO] message_str: {"message_type": "register", "worker_host": "localhost", "worker_port": 6002}
+Manager:6000 [INFO] This is the message dict:
+{
+  "message_type": "register",
+  "worker_host": "localhost",
+  "worker_port": 6002
+}
+Manager:6000 [INFO] Manager:6000 [DEBUG] received
+{
+  "message_type": "register",
+  "worker_host": "localhost",
+  "worker_port": 6002
+}
+Manager:6000 [INFO] Manager:6000 [INFO] registered worker localhost:6002
+Manager:6000 [INFO] message_str: {"message_type": "register", "worker_host": "localhost", "worker_port": 6001}
+Manager:6000 [INFO] This is the message dict:
+{
+  "message_type": "register",
+  "worker_host": "localhost",
+  "worker_port": 6001
+}
+Manager:6000 [INFO] Manager:6000 [DEBUG] received
+{
+  "message_type": "register",
+  "worker_host": "localhost",
+  "worker_port": 6001
+}
+Manager:6000 [INFO] Manager:6000 [INFO] registered worker localhost:6001
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.9728391170501709s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.9349114894866943s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.984438180923462s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.9465105533599854s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.988189697265625s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.951045036315918s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.9991278648376465s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.9619832038879395s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.0114014148712158s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.9678125381469727s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.021659135818481445s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.9786643981933594s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.0381314754486084s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0054962635040283s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.043261051177978516s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.010973691940307617s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.0542700290679932s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0219826698303223s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.05965828895568848s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.02712535858154297s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.070814847946167s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0382819175720215s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.08136916160583496s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.03839755058288574s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.097357988357544s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0543863773345947s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.10280013084411621s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.06484436988830566s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.1083602905273438s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0704045295715332s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.11880636215209961s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.07580327987670898s                                 ago.
+Manager:6000 [INFO] message_str: {"message_type": "new_manager_job", "input_directory": "tests/testdata/input_small", "output_directory": "output", "mapper_executable": "tests/testdata/exec/wc_map_slow.sh", "reducer_executable": "tests/testdata/exec/wc_reduce_slow.sh", "num_mappers": 2, "num_reducers": 2}
+Manager:6000 [INFO] This is the message dict:
+{
+  "message_type": "new_manager_job",
+  "input_directory": "tests/testdata/input_small",
+  "output_directory": "output",
+  "mapper_executable": "tests/testdata/exec/wc_map_slow.sh",
+  "reducer_executable": "tests/testdata/exec/wc_reduce_slow.sh",
+  "num_mappers": 2,
+  "num_reducers": 2
+}
+Manager:6000 [INFO] Job 0 enqueued
+Manager:6000 [INFO] Starting job 0
+Manager:6000 [INFO] Removing existing output directory: output
+Manager:6000 [INFO] Created output directory: output
+Manager:6000 [INFO] Created tmpdir /tmp/mapreduce-shared-job00000-ejj77a08
+Manager:6000 [INFO] Input files [PosixPath('tests/testdata/input_small/file01'), PosixPath('tests/testdata/input_small/file02')]
+Manager:6000 [INFO] Created partitions [['tests/testdata/input_small/file01'], ['tests/testdata/input_small/file02']]
+Manager:6000 [INFO] Assigned task 0 to worker ('localhost', 6002)
+Manager:6000 [INFO] Assigned task 1 to worker ('localhost', 6001)
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.1298630237579346s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.086859941482544s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.1350691318511963s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.09722042083740234s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.1358377933502197s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0979890823364258s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.13573622703552246s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.09777235984802246s                                 ago.
+Manager:6000 [INFO] message_str: {"message_type": "finished", "task_id": 1, "worker_host": "localhost", "worker_port": 6001}
+Manager:6000 [INFO] This is the message dict:
+{
+  "message_type": "finished",
+  "task_id": 1,
+  "worker_host": "localhost",
+  "worker_port": 6001
+}
+Manager:6000 [INFO] Received 'finished' message for task 1 from worker localhost:6001
+Manager:6000 [INFO] Remaining map tasks: 1
+Manager:6000 [INFO] Task 1 finished by worker (state: ready)
+Manager:6000 [INFO] message_str: {"message_type": "finished", "task_id": 0, "worker_host": "localhost", "worker_port": 6002}
+Manager:6000 [INFO] This is the message dict:
+{
+  "message_type": "finished",
+  "task_id": 0,
+  "worker_host": "localhost",
+  "worker_port": 6002
+}
+Manager:6000 [INFO] Received 'finished' message for task 0 from worker localhost:6002
+Manager:6000 [INFO] Remaining map tasks: 0
+Manager:6000 [INFO] Task 0 finished by worker (state: ready)
+Manager:6000 [INFO] All map tasks completed for current job.
+Manager:6000 [INFO] Generated partitions for reduce tasks: [['/tmp/mapreduce-shared-job00000-ejj77a08/maptask00000-part00000', '/tmp/mapreduce-shared-job00000-ejj77a08/maptask00001-part00000'], ['/tmp/mapreduce-shared-job00000-ejj77a08/maptask00000-part00001', '/tmp/mapreduce-shared-job00000-ejj77a08/maptask00001-part00001']]
+Manager:6000 [INFO] Reduce task 0 created: {'message_type': 'new_reduce_task', 'task_id': 0, 'executable': 'tests/testdata/exec/wc_reduce_slow.sh', 'input_paths': ['/tmp/mapreduce-shared-job00000-ejj77a08/maptask00000-part00000', '/tmp/mapreduce-shared-job00000-ejj77a08/maptask00001-part00000'], 'output_directory': 'output'}
+Manager:6000 [INFO] Reduce task 1 created: {'message_type': 'new_reduce_task', 'task_id': 1, 'executable': 'tests/testdata/exec/wc_reduce_slow.sh', 'input_paths': ['/tmp/mapreduce-shared-job00000-ejj77a08/maptask00000-part00001', '/tmp/mapreduce-shared-job00000-ejj77a08/maptask00001-part00001'], 'output_directory': 'output'}
+Manager:6000 [INFO] All reduce tasks queued. Sending to workers.
+Manager:6000 [INFO] Assigned task 0 to worker ('localhost', 6002)
+Manager:6000 [INFO] Assigned task 1 to worker ('localhost', 6001)
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.136411190032959s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.098447322845459s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.13624167442321777s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.09831476211547852s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.13669753074646s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0987706184387207s                                 ago.
+Manager:6000 [INFO] message_str: {"message_type": "finished", "task_id": 0, "worker_host": "localhost", "worker_port": 6002}
+Manager:6000 [INFO] This is the message dict:
+{
+  "message_type": "finished",
+  "task_id": 0,
+  "worker_host": "localhost",
+  "worker_port": 6002
+}
+Manager:6000 [INFO] Received 'finished' message for task 0 from worker localhost:6002
+Manager:6000 [INFO] Remaining reduce tasks: 1
+Manager:6000 [INFO] Received 'finished' message for task 0 from worker ready
+Manager:6000 [INFO] message_str: {"message_type": "finished", "task_id": 1, "worker_host": "localhost", "worker_port": 6001}
+Manager:6000 [INFO] This is the message dict:
+{
+  "message_type": "finished",
+  "task_id": 1,
+  "worker_host": "localhost",
+  "worker_port": 6001
+}
+Manager:6000 [INFO] Received 'finished' message for task 1 from worker localhost:6001
+Manager:6000 [INFO] Remaining reduce tasks: 0
+Manager:6000 [INFO] Received 'finished' message for task 1 from worker ready
+Manager:6000 [INFO] All reduce tasks completed for the current job.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.13717865943908691s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.09865021705627441s                                 ago.
+Manager:6000 [INFO] Cleaned up tmpdir /tmp/mapreduce-shared-job00000-ejj77a08
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.142796516418457s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.1042680740356445s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.14274859428405762s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.10423469543457031s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.159808874130249s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.1212949752807617s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.16541242599487305s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.1269998550415039s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.171384334564209s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.1329717636108398s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.1934962272644043s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.15395331382751465s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.2099206447601318s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.1703777313232422s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.2100539207458496s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.17166566848754883s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.226468801498413s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.1880805492401123s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.24227070808410645s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.20409011840820312s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.2478015422821045s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.2096209526062012s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.2585258483886719s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.22515320777893066s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.2746152877807617s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.2412426471710205s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.27903127670288086s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.24184727668762207s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.289862871170044s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.2526788711547852s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.30433130264282227s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.27379369735717773s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.3210041522979736s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.290466547012329s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.3366708755493164s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.29514312744140625s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.3422160148620605s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.3006882667541504s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.3424108028411865s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.30626749992370605s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.3484487533569336s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.3123054504394531s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.36449098587036133s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.32825446128845215s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.370347261428833s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.3341107368469238s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.37476086616516113s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.3393552303314209s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.3804447650909424s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.3450391292572021s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.39722466468811035s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.3610837459564209s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.408327579498291s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.3721866607666016s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.42455005645751953s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.3886137008666992s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.4353241920471191s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.3993878364562988s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.44061875343322754s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.4044029712677002s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.4570627212524414s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.420846939086914s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.4622352123260498s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.4316725730895996s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.4733219146728516s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.4427592754364014s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.47840428352355957s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.442380428314209s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.4895365238189697s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.4535126686096191s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.4950432777404785s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.4584314823150635s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.5065104961395264s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.4698987007141113s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.5118365287780762s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.47569894790649414s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.5295491218566895s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.4934115409851074s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.540316104888916s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.4930739402770996s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.5565869808197021s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.5093448162078857s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.5727212429046631s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.5305290222167969s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.588940143585205s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.5467479228973389s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.5891458988189697s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.5519919395446777s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.5998384952545166s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.5626845359802246s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.6048352718353271s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.5678203105926514s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.621304988861084s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.5842900276184082s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.6264760494232178s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.5894079208374023s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.6424369812011719s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.6053688526153564s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.6530065536499023s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.6110446453094482s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.6698107719421387s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.6278488636016846s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.6859099864959717s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.6492507457733154s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.6916437149047852s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.654984474182129s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.702451229095459s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.6655979156494141s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.713456392288208s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.676603078842163s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.7187795639038086s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.6875746250152588s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.7297804355621338s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.698575496673584s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.7456753253936768s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.70900559425354s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.7564375400543213s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.7197678089141846s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.7725217342376709s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.7357983589172363s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.7836294174194336s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.746906042098999s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.789492130279541s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.7581202983856201s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.7959437370300293s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.7645719051361084s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.8014082908630371s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.7644553184509277s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.80704927444458s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.7700963020324707s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.8121836185455322s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.7806723117828369s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.828233242034912s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.7967219352722168s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.8440730571746826s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.8019165992736816s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.8497040271759033s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.8075475692749023s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.849351167678833s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.8127932548522949s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.865492582321167s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.828934669494629s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.8813681602478027s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.8395829200744629s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.8973376750946045s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.8555524349212646s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.8977622985839844s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.8662669658660889s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.908785104751587s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.8772897720336914s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.9194841384887695s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.8825883865356445s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.9354808330535889s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.8985850811004639s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.9354488849639893s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.8983237743377686s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.9468417167663574s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.9097166061401367s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.9681499004364014s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.925159215927124s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.9792518615722656s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.9362611770629883s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.994762659072876s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.9576976299285889s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.011055469512939453s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.9686288833618164s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.0280320644378662s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.9846749305725098s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.033663034439086914s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.9907243251800537s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.0449473857879639s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0056157112121582s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.044294118881225586s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.012412309646606445s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.060469388961792s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.0285875797271729s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 2.0716025829315186s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 2.0397207736968994s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 3.077260732650757s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 3.0453789234161377s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 4.088139533996582s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 4.056257724761963s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 5.104259252548218s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 5.072377443313599s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 6.109918832778931s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 6.0780370235443115s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 7.126196622848511s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 7.094314813613892s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.13602447509765625s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.09843158721923828s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.152261734008789s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.114668846130371s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.16837430000305176s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.13584160804748535s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.1795878410339355s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.1470551490783691s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.19547128677368164s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.16317200660705566s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.2116918563842773s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.1793925762176514s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.2275083065032959s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.19518756866455078s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.2330825328826904s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.2007617950439453s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.25415563583374023s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.21160268783569336s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.2703182697296143s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.2277653217315674s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.28637075424194336s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.2489302158355713s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.2918355464935303s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.2543950080871582s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.30242323875427246s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.2702202796936035s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.3182809352874756s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.2860779762268066s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.33405327796936035s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.29664134979248047s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.3396401405334473s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.3022282123565674s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.3551912307739258s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.3184390068054199s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 1.3661558628082275s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 1.3294036388397217s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6002) heartbeat OK. Last seen 0.3818988800048828s                                 ago.
+Manager:6000 [INFO] Worker ('localhost', 6001) heartbeat OK. Last seen 0.34998202323913574s                                 ago.
+Manager:6000 [INFO] message_str: {"message_type": "shutdown"}
+Manager:6000 [INFO] This is the message dict:
+{
+  "message_type": "shutdown"
+}
+Manager:6000 [INFO] Shutdown signal received, completing current task
+Manager:6000 [INFO] Shutdown signal received. Exiting process_jobs loop.
+Manager:6000 [INFO] Stopping job processing due to shutdown.
+Manager:6000 [INFO] Manager shutting down after current tasks completed.

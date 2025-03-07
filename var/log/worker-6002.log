@@ -1,2 +1,46 @@
-Worker:6002 [INFO] Starting worker host=localhost port=6002 pwd=/Users/prishaagnihotri/Documents/eecs485/p4-mapreduce
-Worker:6002 [INFO] manager_host=localhost manager_port=6000
+Worker:6002 [INFO] Worker:6002 Starting worker at localhost:6002
+Worker:6002 [INFO] Worker:6002 connecting to localhost:6000
+Worker:6002 [INFO] TCP Server listening on localhost:6002
+Worker:6002 [INFO] message_str: {"message_type": "register_ack"}
+Worker:6002 [INFO] This is the message dict:
+{
+  "message_type": "register_ack"
+}
+Worker:6002 [INFO] Worker:6002 registered. Heartbeat started.
+Worker:6002 [INFO] message_str: {"message_type": "new_map_task", "task_id": 0, "input_paths": ["tests/testdata/input_small/file01"], "executable": "tests/testdata/exec/wc_map_slow.sh", "output_directory": "/tmp/mapreduce-shared-job00000-ejj77a08", "num_partitions": 2}
+Worker:6002 [INFO] This is the message dict:
+{
+  "message_type": "new_map_task",
+  "task_id": 0,
+  "input_paths": [
+    "tests/testdata/input_small/file01"
+  ],
+  "executable": "tests/testdata/exec/wc_map_slow.sh",
+  "output_directory": "/tmp/mapreduce-shared-job00000-ejj77a08",
+  "num_partitions": 2
+}
+Worker:6002 [INFO] Worker:6002 [INFO] Tmpdir created at /tmp/mapreduce-local-task00000-bjb308oc
+Worker:6002 [INFO] Worker:6002 [INFO] Executed tests/testdata/exec/wc_map_slow.sh input=tests/testdata/input_small/file01
+Worker:6002 [INFO] Worker:6002 [INFO] Moved /tmp/mapreduce-local-task00000-bjb308oc/maptask00000-part00000 -> /tmp/mapreduce-shared-job00000-ejj77a08/maptask00000-part00000
+Worker:6002 [INFO] Worker:6002 [INFO] Moved /tmp/mapreduce-local-task00000-bjb308oc/maptask00000-part00001 -> /tmp/mapreduce-shared-job00000-ejj77a08/maptask00000-part00001
+Worker:6002 [INFO] Worker:6002 [INFO] Removed /tmp/mapreduce-local-task00000-bjb308oc
+Worker:6002 [INFO] message_str: {"message_type": "new_reduce_task", "task_id": 0, "executable": "tests/testdata/exec/wc_reduce_slow.sh", "input_paths": ["/tmp/mapreduce-shared-job00000-ejj77a08/maptask00000-part00000", "/tmp/mapreduce-shared-job00000-ejj77a08/maptask00001-part00000"], "output_directory": "output"}
+Worker:6002 [INFO] This is the message dict:
+{
+  "message_type": "new_reduce_task",
+  "task_id": 0,
+  "executable": "tests/testdata/exec/wc_reduce_slow.sh",
+  "input_paths": [
+    "/tmp/mapreduce-shared-job00000-ejj77a08/maptask00000-part00000",
+    "/tmp/mapreduce-shared-job00000-ejj77a08/maptask00001-part00000"
+  ],
+  "output_directory": "output"
+}
+Worker:6002 [INFO] Worker:6002 [INFO] Executed tests/testdata/exec/wc_reduce_slow.sh
+Worker:6002 [INFO] Worker:6002 [INFO] /tmp/mapreduce-local-task00000-k2_czeo8/part-00000 -> output/part-00000
+Worker:6002 [INFO] Worker:6002 [INFO] Removed /tmp/mapreduce-local-task00000-k2_czeo8
+Worker:6002 [INFO] message_str: {"message_type": "shutdown"}
+Worker:6002 [INFO] This is the message dict:
+{
+  "message_type": "shutdown"
+}

@@ -92,10 +92,7 @@ pytest -vvsx --log-cli-level=INFO
 
 ## Flowchart
 The following flowchart illustrates the MapReduce execution process:
-![image](https://github.com/user-attachments/assets/b456a1bf-d593-4c6e-ba6d-546a1aec1f1f)
-
-
-![MapReduce Flowchart](image.png)
+![MapReduce Flowchart](flowchart.png)
 
 ## References & Acknowledgments
 - EECS 485: Project 4 Specification.
