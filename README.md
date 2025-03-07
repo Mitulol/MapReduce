@@ -94,11 +94,6 @@ pytest -vvsx --log-cli-level=INFO
 The following flowchart illustrates the MapReduce execution process:
 ![MapReduce Flowchart](flowchart.png)
 
-## References & Acknowledgments
-- EECS 485: Project 4 Specification.
-- Google's original MapReduce paper.
-- Instructor-provided test cases and examples.
-
 ---
 This project showcases a functional and fault-tolerant MapReduce framework, demonstrating core distributed system principles applicable to large-scale data processing.
 
